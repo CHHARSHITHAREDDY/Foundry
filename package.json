@@ -5,6 +5,9 @@
   "engines": { "node": ">=20.11" },
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "api:dev": "pnpm --filter @venture-studio/api dev",
+    "api:build": "pnpm --filter @venture-studio/api build",
+    "api:start": "pnpm --filter @venture-studio/api start",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
