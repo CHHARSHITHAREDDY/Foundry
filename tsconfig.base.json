@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@venture-studio/contracts": ["packages/contracts/src/index.ts"],
+      "@venture-studio/service-kit": ["packages/service-kit/src/index.ts"],
+      "@venture-studio/llm-client": ["packages/llm-client/src/index.ts"],
+      "@venture-studio/agent-core": ["packages/agent-core/src/index.ts"]
+    }
+  }
+}
