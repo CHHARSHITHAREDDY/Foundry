@@ -35,3 +35,4 @@ export async function workflowRoutes(app: FastifyInstance) {
     return result;
   });
 }
+

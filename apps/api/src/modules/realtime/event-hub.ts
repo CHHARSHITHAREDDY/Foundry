@@ -25,3 +25,4 @@ export class RealtimeEventHub extends EventEmitter {
     this.emit("stream-event", event);
   }
 }
+

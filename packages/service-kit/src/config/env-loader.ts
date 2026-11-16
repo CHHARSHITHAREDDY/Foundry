@@ -9,3 +9,4 @@ export function loadEnv<T extends z.ZodRawShape>(schema: z.ZodObject<T>): z.infe
   }
   return result.data;
 }
+

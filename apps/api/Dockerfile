@@ -27,3 +27,4 @@ COPY --from=builder /app/apps/api ./apps/api
 
 EXPOSE 3001
 CMD ["node", "apps/api/dist/index.js"]
+

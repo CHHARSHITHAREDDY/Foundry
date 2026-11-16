@@ -37,3 +37,4 @@ export async function realtimeRoutes(app: FastifyInstance) {
     });
   });
 }
+

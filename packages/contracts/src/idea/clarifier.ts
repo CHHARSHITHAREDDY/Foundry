@@ -16,3 +16,4 @@ export const ClarifierResultSchema = z.object({
 
 export type ClarifierQuestion = z.infer<typeof ClarifierQuestionSchema>;
 export type ClarifierResult = z.infer<typeof ClarifierResultSchema>;
+

@@ -14,8 +14,8 @@ export interface CreateServerOptions {
 export async function createServer(options: CreateServerOptions): Promise<FastifyInstance> {
   const logger = createLogger(options.serviceName);
 
-  const server = Fastify({
-    logger,
+  const server: FastifyInstance = Fastify({
+    logger: logger as any,
     genReqId: () => `req_${Math.random().toString(36).substring(2, 9)}`,
     disableRequestLogging: false,
   });
@@ -45,3 +45,4 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
 
   return server;
 }
+

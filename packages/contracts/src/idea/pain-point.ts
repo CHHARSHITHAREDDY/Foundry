@@ -12,3 +12,4 @@ export const PainPointSchema = z.object({
 });
 
 export type PainPoint = z.infer<typeof PainPointSchema>;
+

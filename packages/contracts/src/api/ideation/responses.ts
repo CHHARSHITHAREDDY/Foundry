@@ -16,3 +16,4 @@ export const ValidateIdeaResponseSchema = IdeaBriefSchema;
 export type SurpriseMeResponse = z.infer<typeof SurpriseMeResponseSchema>;
 export type ClarifyIdeaResponse = z.infer<typeof ClarifyIdeaResponseSchema>;
 export type ValidateIdeaResponse = z.infer<typeof ValidateIdeaResponseSchema>;
+

@@ -17,3 +17,4 @@ export interface ModelTierConfig {
   temperature?: number;
   maxTokens?: number;
 }
+

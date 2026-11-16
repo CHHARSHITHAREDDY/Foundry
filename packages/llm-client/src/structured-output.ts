@@ -38,3 +38,4 @@ export function parseStructuredOutput<T>(text: string, schema: z.ZodType<T>): T 
   const raw = extractJsonFromText(text);
   return schema.parse(raw);
 }
+

@@ -1,17 +1,15 @@
-import { TrendScoutService } from "../services/ideation/src/domain/scout/trend-scout.service.js";
-import { IdeaGeneratorService } from "../services/ideation/src/domain/generator/idea-generator.service.js";
-import { ValidatorService } from "../services/ideation/src/domain/validator/validator.service.js";
-import { ClarifierService } from "../services/ideation/src/domain/clarifier/clarifier.service.js";
-import { AgentSwarmExecutor } from "../services/agent-runtime/src/runner/agent-executor.js";
+import { TrendScoutService } from "../apps/api/services/ideation/src/domain/scout/trend-scout.service.js";
+import { IdeaGeneratorService } from "../apps/api/services/ideation/src/domain/generator/idea-generator.service.js";
+import { ValidatorService } from "../apps/api/services/ideation/src/domain/validator/validator.service.js";
+import { ClarifierService } from "../apps/api/services/ideation/src/domain/clarifier/clarifier.service.js";
+import { AgentSwarmExecutor } from "../apps/api/services/agent-runtime/src/runner/agent-executor.js";
 
 async function runVerification() {
   console.log("================================================================================");
   console.log("🚀 STARTING VENTURE STUDIO END-TO-END PIPELINE VERIFICATION");
   console.log("================================================================================\n");
 
-  // ---------------------------------------------------------------------------------
   // 1. WORKFLOW A: "Surprise Me"
-  // ---------------------------------------------------------------------------------
   console.log("🔹 STEP 1: Running Trend Scout (Live pain point sourcing)...");
   const scout = new TrendScoutService();
   const painPoints = await scout.scoutPainPoints();
@@ -46,9 +44,7 @@ async function runVerification() {
   console.log(`   - Summary: ${validated.verdict?.summary}`);
   console.log(`   - Suggestions/Pivots:`, validated.verdict?.pivot_suggestions);
 
-  // ---------------------------------------------------------------------------------
   // 2. WORKFLOW B: User Idea Input + Clarifier
-  // ---------------------------------------------------------------------------------
   console.log("\n--------------------------------------------------------------------------------");
   console.log("🔹 WORKFLOW B: Testing User-Provided Raw Idea + Clarifier...");
   const clarifier = new ClarifierService();
@@ -63,9 +59,7 @@ async function runVerification() {
     });
   }
 
-  // ---------------------------------------------------------------------------------
   // 3. THE 8-AGENT CODING SWARM
-  // ---------------------------------------------------------------------------------
   console.log("\n--------------------------------------------------------------------------------");
   console.log("🔹 STEP 4: Simulating User Approval Gate -> Launching 8-Agent Coding Swarm...");
   const executor = new AgentSwarmExecutor();

@@ -18,3 +18,4 @@ export type EventEnvelope<T = any> = {
   correlationId?: string;
   payload: T;
 };
+

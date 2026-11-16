@@ -24,3 +24,4 @@ export class ToolRegistry {
       .join("\n\n");
   }
 }
+

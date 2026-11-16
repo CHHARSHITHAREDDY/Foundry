@@ -17,3 +17,4 @@ export const ScorecardSchema = z.object({
 
 export type ScoreItem = z.infer<typeof ScoreItemSchema>;
 export type Scorecard = z.infer<typeof ScorecardSchema>;
+

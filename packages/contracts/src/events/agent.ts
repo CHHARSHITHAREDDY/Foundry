@@ -25,3 +25,4 @@ export const AgentScreenshotEventSchema = z.object({
 
 export type AgentLogEvent = z.infer<typeof AgentLogEventSchema>;
 export type AgentScreenshotEvent = z.infer<typeof AgentScreenshotEventSchema>;
+

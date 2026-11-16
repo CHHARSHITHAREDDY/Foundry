@@ -33,3 +33,4 @@ main().catch((err) => {
   console.error("Fatal startup error in apps/api:", err);
   process.exit(1);
 });
+

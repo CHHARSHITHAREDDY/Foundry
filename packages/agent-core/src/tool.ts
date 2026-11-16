@@ -10,3 +10,4 @@ export interface AgentTool<TParams = any, TResult = any> {
 export function defineTool<TParams, TResult>(tool: AgentTool<TParams, TResult>): AgentTool<TParams, TResult> {
   return tool;
 }
+

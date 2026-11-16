@@ -26,3 +26,4 @@ export const BuildSpecSchema = z.object({
 });
 
 export type BuildSpec = z.infer<typeof BuildSpecSchema>;
+

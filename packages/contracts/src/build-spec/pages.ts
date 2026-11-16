@@ -18,3 +18,4 @@ export const PageSpecSchema = z.object({
 
 export type PageComponentSpec = z.infer<typeof PageComponentSpecSchema>;
 export type PageSpec = z.infer<typeof PageSpecSchema>;
+

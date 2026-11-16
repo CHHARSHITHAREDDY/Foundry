@@ -48,3 +48,4 @@ export type HarvestPainPointsRequest = z.infer<typeof HarvestPainPointsRequestSc
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;
 export type FetchPageResponse = z.infer<typeof FetchPageResponseSchema>;
 export type HarvestPainPointsResponse = z.infer<typeof HarvestPainPointsResponseSchema>;
+

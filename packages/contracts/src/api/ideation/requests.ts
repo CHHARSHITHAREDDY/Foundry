@@ -38,3 +38,4 @@ export type ClarifyIdeaRequest = z.infer<typeof ClarifyIdeaRequestSchema>;
 export type ValidateIdeaRequest = z.infer<typeof ValidateIdeaRequestSchema>;
 export type TweakIdeaRequest = z.infer<typeof TweakIdeaRequestSchema>;
 export type ApproveIdeaRequest = z.infer<typeof ApproveIdeaRequestSchema>;
+

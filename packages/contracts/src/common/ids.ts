@@ -13,3 +13,4 @@ export type CompanyId = z.infer<typeof CompanyIdSchema>;
 export type RunId = z.infer<typeof RunIdSchema>;
 export type UserId = z.infer<typeof UserIdSchema>;
 export type TaskId = z.infer<typeof TaskIdSchema>;
+

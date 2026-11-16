@@ -56,3 +56,4 @@ export async function researchRoutes(app: FastifyInstance) {
     return { results };
   });
 }
+

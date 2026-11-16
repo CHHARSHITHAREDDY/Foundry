@@ -12,3 +12,4 @@ export const VerdictSchema = z.object({
 
 export type VerdictStatus = z.infer<typeof VerdictStatusSchema>;
 export type Verdict = z.infer<typeof VerdictSchema>;
+

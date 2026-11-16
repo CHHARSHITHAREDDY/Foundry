@@ -1,9 +1,9 @@
-import { buildResearchServer } from "../services/research/src/server.js";
-import { buildIdeationServer } from "../services/ideation/src/server.js";
-import { buildApiUserServer } from "../services/api-user/src/server.js";
+import { buildResearchServer } from "../apps/api/services/research/src/server.js";
+import { buildIdeationServer } from "../apps/api/services/ideation/src/server.js";
+import { buildApiUserServer } from "../apps/api/services/api-user/src/server.js";
 
 async function testHttpServices() {
-  console.log("Starting services Fastify HTTP injection test...");
+  console.log("Starting services Fastify HTTP injection test (inside apps/api/services)...");
 
   // 1. Build servers
   const research = await buildResearchServer();
@@ -55,7 +55,7 @@ async function testHttpServices() {
   console.log("✅ Clarify response:", clarifyRes.json());
 
   console.log("\n================================================================================");
-  console.log("🎉 ALL FASTIFY HTTP API SERVICES VERIFIED SUCCESSFULLY!");
+  console.log("🎉 ALL SERVICES INSIDE apps/api/services PASSED VERIFICATION!");
   console.log("================================================================================");
 }
 

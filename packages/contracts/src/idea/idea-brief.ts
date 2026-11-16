@@ -52,3 +52,4 @@ export type Competitor = z.infer<typeof CompetitorSchema>;
 export type MvpScope = z.infer<typeof MvpScopeSchema>;
 export type IdeaStatus = z.infer<typeof IdeaStatusSchema>;
 export type IdeaBrief = z.infer<typeof IdeaBriefSchema>;
+

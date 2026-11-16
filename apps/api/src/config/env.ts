@@ -20,3 +20,4 @@ export type ApiEnv = z.infer<typeof ApiEnvSchema>;
 export function getApiEnv(): ApiEnv {
   return ApiEnvSchema.parse(process.env);
 }
+

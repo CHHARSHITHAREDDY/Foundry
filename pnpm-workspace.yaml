@@ -1,6 +1,6 @@
 packages:
   - "apps/*"
-  - "services/*"
+  - "apps/api/services/*"
   - "packages/*"
   - "packages/templates/*"
   - "evals"

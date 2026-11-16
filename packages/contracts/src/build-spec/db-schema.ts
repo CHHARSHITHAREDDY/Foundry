@@ -23,3 +23,4 @@ export const DbSchemaSpecSchema = z.object({
 export type ColumnSpec = z.infer<typeof ColumnSpecSchema>;
 export type TableSpec = z.infer<typeof TableSpecSchema>;
 export type DbSchemaSpec = z.infer<typeof DbSchemaSpecSchema>;
+

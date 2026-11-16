@@ -16,3 +16,4 @@ export const IdeaApprovedEventSchema = z.object({
   ideaId: z.string(),
   idea: IdeaBriefSchema,
 });
+

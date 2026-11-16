@@ -19,3 +19,4 @@ export const OpenApiRefSchema = z.object({
 export type HttpMethod = z.infer<typeof HttpMethodSchema>;
 export type ApiEndpointSpec = z.infer<typeof ApiEndpointSpecSchema>;
 export type OpenApiRef = z.infer<typeof OpenApiRefSchema>;
+

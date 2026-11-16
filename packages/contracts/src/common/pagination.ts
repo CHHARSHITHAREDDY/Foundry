@@ -16,3 +16,4 @@ export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =
   });
 
 export type PaginationQuery = z.infer<typeof PaginationQuerySchema>;
+

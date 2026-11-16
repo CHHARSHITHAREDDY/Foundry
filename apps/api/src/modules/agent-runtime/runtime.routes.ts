@@ -16,3 +16,4 @@ export async function runtimeRoutes(app: FastifyInstance) {
     return result;
   });
 }
+
