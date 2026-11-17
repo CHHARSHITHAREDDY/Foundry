@@ -252,3 +252,4 @@ export function IdeaModal({ isOpen, onClose, onApproveBuild }: IdeaModalProps) {
     </div>
   );
 }
+

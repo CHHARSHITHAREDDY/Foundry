@@ -126,3 +126,6 @@ export class LlmClient {
   }
 }
 
+export const llmClient = new LlmClient();
+export const llmGateway = llmClient;
+

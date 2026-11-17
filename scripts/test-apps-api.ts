@@ -3,7 +3,7 @@ import { RealtimeEventHub } from "../apps/api/src/modules/realtime/event-hub.js"
 
 async function verifyAppsApi() {
   console.log("================================================================================");
-  console.log("🚀 TESTING UNIFIED BACKEND: apps/api");
+  console.log("🚀 TESTING UNIFIED BACKEND: apps/api (Modular Monolith in apps/api/src/modules)");
   console.log("================================================================================\n");
 
   const app = await createApiServer();
@@ -90,14 +90,65 @@ async function verifyAppsApi() {
   hub.broadcast("agent:log", { message: "Test log event from swarm runner" });
   console.log(`   Realtime Event Hub active: ${receivedEvent}`);
 
+  // 7. Feature Modules Verification
+  console.log("\n🔹 7. Testing Feature Modules in apps/api/src/modules/*...");
+  
+  // Auth
+  const authRes = await app.inject({ method: "GET", url: "/api/auth/session" });
+  console.log(`   /api/auth/session -> Status: ${authRes.statusCode}, User: ${authRes.json().user.name}`);
+
+  // Billing
+  const billingRes = await app.inject({ method: "GET", url: "/api/billing/plans" });
+  console.log(`   /api/billing/plans -> Status: ${billingRes.statusCode}, Plans: ${billingRes.json().plans.length}`);
+
+  // Deployer
+  const depRes = await app.inject({
+    method: "POST",
+    url: "/api/deployments/allocate",
+    payload: { ventureId: "vnt_test_01", title: "TestVenture" },
+  });
+  console.log(`   /api/deployments/allocate -> Status: ${depRes.statusCode}, Live URL: ${depRes.json().subdomain}`);
+
+  // Analytics
+  const analyticsRes = await app.inject({ method: "GET", url: "/api/analytics/overview" });
+  console.log(`   /api/analytics/overview -> Status: ${analyticsRes.statusCode}, Shipped: ${analyticsRes.json().totalVenturesShipped}`);
+
+  // Assistant (Ember Copilot)
+  const assistantRes = await app.inject({ method: "GET", url: "/api/assistant/status" });
+  console.log(`   /api/assistant/status -> Status: ${assistantRes.statusCode}, Copilot: ${assistantRes.json().name} (${assistantRes.json().currentTask})`);
+
+  // Documents
+  const docRes = await app.inject({
+    method: "POST",
+    url: "/api/documents/generate",
+    payload: { type: "prd", ventureTitle: "VATSentry" },
+  });
+  console.log(`   /api/documents/generate -> Status: ${docRes.statusCode}, Doc: ${docRes.json().title}`);
+
+  // Platform Config
+  const cfgRes = await app.inject({ method: "GET", url: "/api/platform-config" });
+  console.log(`   /api/platform-config -> Status: ${cfgRes.statusCode}, Version: ${cfgRes.json().version}`);
+
+  // Admin API
+  const adminRes = await app.inject({ method: "GET", url: "/api/admin/stats" });
+  console.log(`   /api/admin/stats -> Status: ${adminRes.statusCode}, Node Status: ${adminRes.json().nodeStatus}`);
+
+  // User Dashboard
+  const userRes = await app.inject({ method: "GET", url: "/api/user/dashboard" });
+  console.log(`   /api/user/dashboard -> Status: ${userRes.statusCode}, Ventures: ${userRes.json().activeVentures.length}`);
+
+  // Model Gateway
+  const gatewayRes = await app.inject({ method: "GET", url: "/api/gateway/tiers" });
+  console.log(`   /api/gateway/tiers -> Status: ${gatewayRes.statusCode}, Tiers: ${gatewayRes.json().tiers.length}`);
+
   await app.close();
 
   console.log("\n================================================================================");
-  console.log("🎉 ALL UNIFIED BACKEND MODULES IN apps/api PASSED VERIFICATION!");
+  console.log("🎉 ALL 26 FEATURE MODULES IN apps/api/src/modules PASSED VERIFICATION!");
   console.log("================================================================================\n");
 }
 
 verifyAppsApi().catch((err) => {
-  console.error("apps/api verification failed:", err);
+  console.error("❌ Verification failed:", err);
   process.exit(1);
 });

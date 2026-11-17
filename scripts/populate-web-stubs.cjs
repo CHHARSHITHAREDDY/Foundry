@@ -35,3 +35,4 @@ function walk(dir) {
 
 walk('d:/project/apps/web/src/app');
 console.log('Finished populating stubs.');
+

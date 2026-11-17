@@ -42,3 +42,4 @@ export function FinalCTA({ onStartClick, onExploreClick }: FinalCTAProps) {
     </section>
   );
 }
+

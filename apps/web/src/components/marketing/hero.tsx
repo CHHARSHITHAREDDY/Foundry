@@ -213,3 +213,4 @@ export function Hero({ onSurpriseClick, onIdeaClick }: HeroProps) {
     </section>
   );
 }
+

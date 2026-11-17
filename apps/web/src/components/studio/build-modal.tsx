@@ -189,3 +189,4 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
     </div>
   );
 }
+

@@ -92,3 +92,4 @@ export function Header({ onSurpriseClick, onIdeaClick }: HeaderProps) {
     </header>
   );
 }
+
