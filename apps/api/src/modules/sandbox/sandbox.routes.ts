@@ -14,3 +14,4 @@ export const sandboxRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     return reply.send(result);
   });
 };
+

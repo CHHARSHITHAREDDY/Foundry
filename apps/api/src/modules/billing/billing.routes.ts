@@ -22,3 +22,4 @@ export const billingRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     return reply.send(session);
   });
 };
+

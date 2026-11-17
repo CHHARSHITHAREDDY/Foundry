@@ -6,3 +6,4 @@ export const auditRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send({ logs: auditService.getEntries() });
   });
 };
+

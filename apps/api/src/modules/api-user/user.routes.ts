@@ -7,3 +7,4 @@ export const userRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send(data);
   });
 };
+

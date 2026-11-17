@@ -21,3 +21,4 @@ export const emailRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send(status);
   });
 };
+

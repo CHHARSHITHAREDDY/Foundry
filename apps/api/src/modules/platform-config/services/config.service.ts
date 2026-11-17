@@ -20,3 +20,4 @@ export class PlatformConfigService {
 }
 
 export const platformConfigService = new PlatformConfigService();
+

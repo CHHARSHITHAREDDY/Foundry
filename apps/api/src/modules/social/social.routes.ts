@@ -14,3 +14,4 @@ export const socialRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     return reply.send(thread);
   });
 };
+

@@ -8,3 +8,4 @@ export const mediaRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.type("image/svg+xml").send(svg);
   });
 };
+

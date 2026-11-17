@@ -14,3 +14,4 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     return reply.send(doc);
   });
 };
+

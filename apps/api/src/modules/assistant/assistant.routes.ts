@@ -18,3 +18,4 @@ export const assistantRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     return reply.send(result);
   });
 };
+

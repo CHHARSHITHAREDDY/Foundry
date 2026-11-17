@@ -1,0 +1,167 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  FOUNDER
+  ADMIN
+  MEMBER
+}
+
+enum VerdictStatus {
+  GO
+  GO_WITH_CHANGES
+  NO_GO
+}
+
+enum RunStage {
+  PENDING
+  ARCHITECTING
+  BUILDING
+  INTEGRATING
+  QA
+  REVIEW
+  DEPLOY
+  COMPLETED
+  FAILED
+}
+
+enum DeploymentStatus {
+  BUILDING
+  LIVE
+  FAILED
+  ARCHIVED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(FOUNDER)
+  credits   Int      @default(250)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventures      Venture[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Venture {
+  id             String           @id @default(uuid())
+  title          String
+  tagline        String?
+  problem        String           @db.Text
+  targetCustomer String
+  whyNow         String?          @db.Text
+  verdict        VerdictStatus    @default(GO)
+  totalScore     Float            @default(4.2)
+  subdomain      String?          @unique
+  status         DeploymentStatus @default(BUILDING)
+  ownerId        String
+  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  scorecard Scorecard?
+  evidence  EvidenceCitation[]
+  runs      WorkflowRun[]
+
+  @@map("ventures")
+}
+
+model Scorecard {
+  id              String   @id @default(uuid())
+  ventureId       String   @unique
+  venture         Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  demand          Float    @default(4.0)
+  competition     Float    @default(4.0)
+  differentiation Float    @default(4.0)
+  monetization    Float    @default(4.0)
+  buildability    Float    @default(4.0)
+  total           Float    @default(4.0)
+  createdAt       DateTime @default(now())
+
+  @@map("scorecards")
+}
+
+model EvidenceCitation {
+  id        String   @id @default(uuid())
+  ventureId String
+  venture   Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  source    String   // e.g. "r/SaaS", "Hacker News"
+  url       String
+  quote     String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@map("evidence_citations")
+}
+
+model WorkflowRun {
+  id              String   @id @default(uuid())
+  ventureId       String
+  venture         Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  currentStage    RunStage @default(PENDING)
+  completedStages String[] @default([])
+  logs            String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  artifacts BuildArtifact[]
+
+  @@map("workflow_runs")
+}
+
+model BuildArtifact {
+  id        String      @id @default(uuid())
+  runId     String
+  run       WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  filePath  String
+  content   String      @db.Text
+  fileType  String
+  createdAt DateTime    @default(now())
+
+  @@map("build_artifacts")
+}
+
+model PaymentAccount {
+  id              String   @id @default(uuid())
+  companyId       String   @unique
+  stripeAccountId String   @unique
+  chargesEnabled  Boolean  @default(false)
+  payoutsEnabled  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("payment_accounts")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actor     String
+  action    String
+  target    String
+  metadata  Json?
+  timestamp DateTime @default(now())
+
+  @@map("audit_logs")
+}

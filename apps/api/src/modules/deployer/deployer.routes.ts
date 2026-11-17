@@ -25,3 +25,4 @@ export const deployerRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     return reply.send(dep);
   });
 };
+

@@ -6,3 +6,4 @@ export const platformConfigRoutes: FastifyPluginAsync = async (app: FastifyInsta
     return reply.send(platformConfigService.getConfig());
   });
 };
+

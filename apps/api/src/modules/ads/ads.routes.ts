@@ -14,3 +14,4 @@ export const adsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send({ creatives });
   });
 };
+

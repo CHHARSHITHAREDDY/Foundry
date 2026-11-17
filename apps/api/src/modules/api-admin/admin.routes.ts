@@ -18,3 +18,4 @@ export const adminRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send(result);
   });
 };
+

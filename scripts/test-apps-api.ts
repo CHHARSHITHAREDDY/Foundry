@@ -141,6 +141,29 @@ async function verifyAppsApi() {
   const gatewayRes = await app.inject({ method: "GET", url: "/api/gateway/tiers" });
   console.log(`   /api/gateway/tiers -> Status: ${gatewayRes.statusCode}, Tiers: ${gatewayRes.json().tiers.length}`);
 
+  // 8. Infrastructure Services Verification: Config, Prisma & Redis
+  console.log("\n🔹 8. Testing Infrastructure Modules: Config, Prisma & Redis...");
+  const { getDatabaseConfig, getRedisConfig } = await import("../apps/api/src/config/index.js");
+  const dbCfg = getDatabaseConfig();
+  const redisCfg = getRedisConfig();
+  console.log(`   [Config] Loaded DB URL: ${dbCfg.url.split("@")[1] || "localhost"}, Redis Prefix: "${redisCfg.keyPrefix}"`);
+
+  const { dbClient } = await import("../apps/api/src/prisma/index.js");
+  const dbHealth = await dbClient.checkHealth();
+  console.log(`   [Prisma] Database Client status: ${dbHealth.status}`);
+
+  const { redisCache, redisPubSub } = await import("../apps/api/src/redis/index.js");
+  await redisCache.set("test_key", { venture: "VATSentry", active: true }, 60);
+  const cachedVal = await redisCache.get<any>("test_key");
+  console.log(`   [Redis] Cache set & get: venture="${cachedVal?.venture}", valid: ${cachedVal?.active === true}`);
+
+  let pubSubReceived = false;
+  redisPubSub.subscribe("events:build", (data) => {
+    pubSubReceived = true;
+  });
+  await redisPubSub.publish("events:build", { status: "stage_started" });
+  console.log(`   [Redis] Pub/Sub message broadcast: ${pubSubReceived}`);
+
   await app.close();
 
   console.log("\n================================================================================");

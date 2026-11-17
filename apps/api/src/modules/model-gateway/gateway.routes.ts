@@ -19,3 +19,4 @@ export const modelGatewayRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     return reply.send({ text });
   });
 };
+

@@ -7,3 +7,4 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     return reply.send({ notifications: list });
   });
 };
+

@@ -9,3 +9,4 @@ export const tasksRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reply.send(task);
   });
 };
+

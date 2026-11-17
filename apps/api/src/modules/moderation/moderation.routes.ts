@@ -13,3 +13,4 @@ export const moderationRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     return reply.send(result);
   });
 };
+

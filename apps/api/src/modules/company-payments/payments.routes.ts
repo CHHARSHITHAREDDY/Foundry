@@ -19,3 +19,4 @@ export const companyPaymentsRoutes: FastifyPluginAsync = async (app: FastifyInst
     return reply.send(status);
   });
 };
+
