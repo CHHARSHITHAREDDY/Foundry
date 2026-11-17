@@ -221,7 +221,51 @@ importers:
 
   apps/api/services/workflow: {}
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      '@venture-studio/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.441.0
+        version: 0.441.0(react@19.0.0-rc-66855b96-20241106)
+      next:
+        specifier: 15.0.3
+        version: 15.0.3(react-dom@19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106))(react@19.0.0-rc-66855b96-20241106)
+      react:
+        specifier: 19.0.0-rc-66855b96-20241106
+        version: 19.0.0-rc-66855b96-20241106
+      react-dom:
+        specifier: 19.0.0-rc-66855b96-20241106
+        version: 19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106)
+      tailwind-merge:
+        specifier: ^2.5.2
+        version: 2.6.1
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.9
+        version: 20.19.43
+      '@types/react':
+        specifier: npm:types-react@19.0.0-rc.1
+        version: types-react@19.0.0-rc.1
+      '@types/react-dom':
+        specifier: npm:types-react-dom@19.0.0-rc.1
+        version: types-react-dom@19.0.0-rc.1
+      postcss:
+        specifier: ^8.4.38
+        version: 8.5.33
+      tailwindcss:
+        specifier: ^3.4.4
+        version: 3.4.19(tsx@4.23.15)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   evals: {}
 

@@ -27,11 +27,16 @@ export class StudioApiClient {
     return `${this.baseUrl}/api/stream`;
   }
 
-  async surpriseMe(req: SurpriseMeRequest = {}): Promise<SurpriseMeResponse> {
+  async surpriseMe(req: Partial<SurpriseMeRequest> = { maxCandidates: 5 }): Promise<SurpriseMeResponse> {
+    const payload: SurpriseMeRequest = {
+      maxCandidates: req.maxCandidates ?? 5,
+      targetAudience: req.targetAudience,
+      domainPreference: req.domainPreference,
+    };
     const res = await fetch(`${this.baseUrl}/api/ideas/surprise`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Surprise Me failed: ${await res.text()}`);
     return SurpriseMeResponseSchema.parse(await res.json());
