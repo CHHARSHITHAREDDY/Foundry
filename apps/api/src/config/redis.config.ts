@@ -21,3 +21,4 @@ export function getRedisConfig(): RedisConfig {
     lazyConnect: true,
   };
 }
+

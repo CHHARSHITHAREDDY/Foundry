@@ -41,3 +41,4 @@ export class DatabaseClient {
 }
 
 export const dbClient = DatabaseClient.getInstance();
+

@@ -20,3 +20,4 @@ export function getDatabaseConfig(): DatabaseConfig {
     ssl: isProd,
   };
 }
+

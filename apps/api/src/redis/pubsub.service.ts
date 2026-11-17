@@ -31,3 +31,4 @@ export class RedisPubSubService extends EventEmitter {
 }
 
 export const redisPubSub = RedisPubSubService.getInstance();
+
