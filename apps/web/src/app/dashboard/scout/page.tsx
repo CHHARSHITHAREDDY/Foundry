@@ -477,13 +477,13 @@ export default function ScoutPage() {
               >
                 <span>BACKGROUND RUN</span>
               </button>
-              {/* View Candidates / Proceed */}
+              {/* View Candidates / Proceed to Validation Gate */}
               <button
-                onClick={() => setSurpriseOpen(true)}
+                onClick={() => router.push("/dashboard/validation")}
                 className="px-space-md h-9 bg-[#111111] text-[#ffffff] border-[1.5px] border-[#111111] font-label-md text-label-md uppercase tracking-wider font-bold rounded-DEFAULT hover:bg-primary hover:border-primary hover:shadow-[2px_2px_0px_0px_#111111] transition-all flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_#111111]"
                 type="button"
               >
-                <span>VIEW CANDIDATES (3)</span>
+                <span>PROCEED TO VALIDATION (88)</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>

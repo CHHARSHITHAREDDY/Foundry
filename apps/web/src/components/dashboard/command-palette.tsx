@@ -169,6 +169,19 @@ export function CommandPalette({
       },
     },
     {
+      id: "page-validation",
+      group: "pages",
+      title: "Validation Gate // Candidate Dossier",
+      subtitle: "Heuristic evaluation, composite score, competitive moats & pivots",
+      icon: "gavel",
+      shortcut: "G then V",
+      action: () => {
+        if (onNavigate) onNavigate("validation");
+        else router.push("/dashboard/validation");
+        onClose();
+      },
+    },
+    {
       id: "page-new",
       group: "pages",
       title: "Genesis Protocol // New Venture",
