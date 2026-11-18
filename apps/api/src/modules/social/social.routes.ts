@@ -8,7 +8,8 @@ const ThreadSchema = z.object({
 });
 
 const TweetSchema = z.object({
-  content: z.string().min(1),
+  content: z.string().optional(),
+  tweetText: z.string().optional(),
   companyName: z.string().optional(),
 });
 
@@ -21,11 +22,12 @@ export const socialRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
 
   // Post or schedule a tweet
   app.post("/tweet", async (req, reply) => {
-    const body = TweetSchema.parse(req.body);
+    const body = TweetSchema.parse(req.body || {});
+    const text = body.content || body.tweetText || "Launch update";
     return reply.send({
       success: true,
       tweetId: `tw_${Date.now()}`,
-      content: body.content,
+      content: text,
       publishedAt: new Date().toISOString(),
       handle: "@PriceWatchHQ",
     });

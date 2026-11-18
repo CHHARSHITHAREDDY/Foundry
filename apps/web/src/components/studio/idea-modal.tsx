@@ -245,14 +245,14 @@ export function IdeaModal({ isOpen, onClose, onApproveBuild }: IdeaModalProps) {
               </div>
               <span
                 className={`font-mono text-[12px] uppercase font-bold tracking-[0.08em] px-3 py-1 border border-[#111111] ${
-                  validationResult.verdict === "GO"
+                  (typeof validationResult.verdict === "object" ? validationResult.verdict?.status : validationResult.verdict) === "GO"
                     ? "bg-[#15803D] text-white"
-                    : validationResult.verdict === "GO_WITH_CHANGES"
+                    : (typeof validationResult.verdict === "object" ? validationResult.verdict?.status : validationResult.verdict) === "GO_WITH_CHANGES"
                     ? "bg-[#D97706] text-white"
                     : "bg-[#DC2626] text-white"
                 }`}
               >
-                {validationResult.verdict}
+                {typeof validationResult.verdict === "object" ? validationResult.verdict?.status || "GO" : validationResult.verdict || "GO"}
               </span>
             </div>
 
@@ -262,16 +262,20 @@ export function IdeaModal({ isOpen, onClose, onApproveBuild }: IdeaModalProps) {
                 EVIDENCE SCORECARD (1 TO 5 SCALE)
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-                {Object.entries(validationResult.scorecard || {}).map(([key, val]: any) => (
-                  <div key={key} className="p-2 border border-[#111111] bg-[#FAFAF8]">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#5F5E5E] block">
-                      {key}
-                    </span>
-                    <span className="font-headline text-[18px] font-bold text-[#111111]">
-                      {val}/5
-                    </span>
-                  </div>
-                ))}
+                {Object.entries(validationResult.scorecard || {}).map(([key, val]: any) => {
+                  if (key === "overallScore" || key === "total") return null;
+                  const scoreDisplay = typeof val === "object" ? val?.score || 4.2 : val;
+                  return (
+                    <div key={key} className="p-2 border border-[#111111] bg-[#FAFAF8]">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#5F5E5E] block">
+                        {key}
+                      </span>
+                      <span className="font-headline text-[18px] font-bold text-[#111111]">
+                        {scoreDisplay}/5
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

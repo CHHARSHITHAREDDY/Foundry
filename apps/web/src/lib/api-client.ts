@@ -299,6 +299,25 @@ export class StudioApiClient {
     const res = await fetch(`${this.baseUrl}/api/notifications/${id}/read`, { method: "POST" });
     return res.json();
   }
+
+  // --- 9. AUTHENTICATION ---
+  async login(email: string): Promise<{ token: string; user: any }> {
+    const res = await fetch(`${this.baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error(`Login failed: ${await res.text()}`);
+    return res.json();
+  }
+
+  async getSession(token?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${this.baseUrl}/api/auth/session`, { headers });
+    if (!res.ok) return { authenticated: false };
+    return res.json();
+  }
 }
 
 export const api = new StudioApiClient();

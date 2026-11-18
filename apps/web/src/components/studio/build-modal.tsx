@@ -99,10 +99,11 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
       }
 
       // Trigger the build
+      const payload = (idea as any)?.idea || idea;
       fetch("/api/backend/runtime/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea }),
+        body: JSON.stringify(payload),
       })
         .then((res) => {
           if (res.ok) {

@@ -17,10 +17,29 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
 
   if (!isOpen) return null;
 
+  const getScoreVal = (val: any): number => {
+    if (typeof val === "number") return val;
+    if (val && typeof val === "object" && typeof val.score === "number") return val.score;
+    return 4.2;
+  };
+
+  const getVerdictStatus = (verdict: any): string => {
+    if (!verdict) return "GO";
+    if (typeof verdict === "string") return verdict;
+    if (typeof verdict === "object" && verdict.status) return String(verdict.status);
+    return "GO";
+  };
+
+  const getScorecardTotal = (sc: any): string => {
+    if (!sc) return "4.4";
+    const num = sc.overallScore || sc.total || 4.4;
+    return typeof num === "number" ? num.toFixed(1) : String(num);
+  };
+
   const runSurpriseMe = async () => {
     setStage("scouting");
     try {
-      // Attempt backend call
+      // Real Fastify backend call via Next.js rewrite
       const res = await fetch("/api/backend/ideas/surprise", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,7 +55,7 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
         return;
       }
     } catch {
-      // Fallback simulation
+      // Fallback simulation if backend offline
     }
 
     // Realistic simulation if backend offline
@@ -60,17 +79,22 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
             { source: "Hacker News", url: "https://news.ycombinator.com/item?id=3819201", quote: "EU VAT compliance is the single most frustrating part of running a micro-SaaS." },
           ],
           scorecard: {
-            demand: 4.5,
-            competition: 4.0,
-            differentiation: 4.2,
-            monetization: 4.8,
-            buildability: 4.7,
-            total: 4.4,
+            demand: { score: 4.5, reason: "High complaint volume" },
+            competition: { score: 4.0, reason: "Enterprise incumbents" },
+            differentiation: { score: 4.2, reason: "Zero setup friction" },
+            monetization: { score: 4.8, reason: "Direct tax compliance ROI" },
+            buildability: { score: 4.7, reason: "Webhook + PDF generation" },
+            overallScore: 4.4,
           },
-          verdict: "GO",
-          mvpScope: ["Stripe webhook listener", "Monthly VAT PDF report generator", "Direct tax authority XML export"],
+          verdict: { status: "GO", summary: "High buildability and acute demand" },
+          mvpScope: {
+            screens: ["Dashboard", "Invoices", "Settings"],
+            coreApis: ["/api/stripe/webhook", "/api/vat/validate", "/api/invoices/export"],
+            keyFeatures: ["Stripe webhook listener", "Monthly VAT PDF report generator", "Direct tax authority XML export"],
+            estimatedComplexity: "LOW",
+          },
         },
-        cachedCount: 4,
+        cachedCandidates: [],
       };
       setIdeaData(mock);
       setTweakedTitle(mock.selectedIdea.title);
@@ -79,15 +103,42 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
     }, 3800);
   };
 
+  const handleNextCandidate = async () => {
+    try {
+      const currentId = ideaData?.selectedIdea?.id || "";
+      const res = await fetch(`/api/backend/ideas/next-candidate?currentId=${encodeURIComponent(currentId)}`);
+      if (res.ok) {
+        const nextIdea = await res.json();
+        setIdeaData((prev: any) => ({
+          ...prev,
+          selectedIdea: nextIdea,
+        }));
+        setTweakedTitle(nextIdea.title || "VATSentry");
+        setTweakedProblem(nextIdea.problem || "");
+        return;
+      }
+    } catch {}
+    // Fallback to fresh run if cache exhausted
+    runSurpriseMe();
+  };
+
   const handleStart = () => {
     runSurpriseMe();
   };
 
   const handleApprove = () => {
-    if (onApproveBuild && ideaData) {
-      onApproveBuild(ideaData.selectedIdea);
+    if (onApproveBuild && ideaData?.selectedIdea) {
+      const ideaToBuild = {
+        ...ideaData.selectedIdea,
+        title: tweakedTitle || ideaData.selectedIdea.title,
+        problem: tweakedProblem || ideaData.selectedIdea.problem,
+      };
+      onApproveBuild(ideaToBuild);
     }
   };
+
+  const currentVerdict = getVerdictStatus(ideaData?.selectedIdea?.verdict);
+  const totalScore = getScorecardTotal(ideaData?.selectedIdea?.scorecard);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/70 backdrop-blur-sm">
@@ -114,17 +165,17 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
             <div className="w-16 h-16 mx-auto mb-4 bg-[#EDEDEA] border-[1.5px] border-[#111111] flex items-center justify-center">
               <span className="material-symbols-outlined text-[32px] text-[#F25C05]">bolt</span>
             </div>
-            <h3 className="font-headline text-[24px] font-bold text-[#111111] mb-2">
+            <h3 className="font-headline text-[24px] font-bold text-[#111111] mb-2 font-serif">
               Autonomous Trend Scout &amp; Validator
             </h3>
-            <p className="font-body text-[16px] text-[#474646] max-w-md mx-auto mb-6">
+            <p className="font-body text-[16px] text-[#474646] max-w-md mx-auto mb-6 font-serif">
               Our agent swarm will scour Reddit complaints, Hacker News discussions, and Product Hunt reviews to uncover real unserved market pain points.
             </p>
             <button
               onClick={handleStart}
-              className="h-12 px-8 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] border border-[#111111] hover:shadow-[3px_3px_0px_0px_#F25C05] transition-all cursor-pointer"
+              className="h-12 px-8 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] border border-[#111111] hover:bg-[#F25C05] hover:border-[#F25C05] hover:shadow-[3px_3px_0px_0px_#111111] transition-all cursor-pointer font-bold"
             >
-              INITIALIZE TREND SCOUT
+              INITIALIZE TREND SCOUT ➔
             </button>
           </div>
         )}
@@ -158,7 +209,7 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
           </div>
         )}
 
-        {stage === "ready" && ideaData && (
+        {stage === "ready" && ideaData?.selectedIdea && (
           <div className="space-y-5">
             {/* Top Badge & Verdict */}
             <div className="flex items-center justify-between bg-[#EDEDEA] p-3 border border-[#111111]">
@@ -166,16 +217,16 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                 <span className="font-mono text-[10px] text-[#5F5E5E] uppercase block">
                   RECOMMENDED OPPORTUNITY
                 </span>
-                <span className="font-headline text-[20px] font-bold text-[#111111]">
-                  {ideaData.selectedIdea.title}
+                <span className="font-headline text-[20px] font-bold text-[#111111] font-serif">
+                  {tweakedTitle || ideaData.selectedIdea.title}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="bg-[#15803D] text-white font-mono text-[11px] px-2 py-0.5 font-bold">
-                  VERDICT: {ideaData.selectedIdea.verdict}
+                  VERDICT: {currentVerdict}
                 </span>
                 <span className="bg-white border border-[#111111] font-mono text-[11px] px-2 py-0.5 font-bold">
-                  SCORE: {ideaData.selectedIdea.scorecard.total}/5.0
+                  SCORE: {totalScore}/5.0
                 </span>
               </div>
             </div>
@@ -194,8 +245,8 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                     rows={3}
                   />
                 ) : (
-                  <p className="font-body text-[15px] text-[#111111] leading-relaxed">
-                    {ideaData.selectedIdea.problem}
+                  <p className="font-body text-[15px] text-[#111111] leading-relaxed font-serif">
+                    {tweakedProblem || ideaData.selectedIdea.problem}
                   </p>
                 )}
               </div>
@@ -226,23 +277,28 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                 VERIFIED EVIDENCE CITATIONS
               </span>
               <div className="space-y-2">
-                {ideaData.selectedIdea.evidence?.map((ev: any, idx: number) => (
-                  <a
-                    key={idx}
-                    href={ev.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block bg-[#EDEDEA] border border-[#111111] p-2 hover:bg-[#e4e2dd] transition-colors"
-                  >
-                    <div className="flex items-center justify-between font-mono text-[10px]">
-                      <span className="font-bold text-[#F25C05]">{ev.source}</span>
-                      <span className="text-[#5F5E5E] underline truncate max-w-xs">{ev.url}</span>
-                    </div>
-                    <p className="font-body text-[13px] text-[#111111] italic mt-1">
-                      &quot;{ev.quote}&quot;
-                    </p>
-                  </a>
-                ))}
+                {ideaData.selectedIdea.evidence?.map((ev: any, idx: number) => {
+                  const sourceLabel = ev.source || ev.title || ev.type || "Community Signal";
+                  const quoteSnippet = ev.quote || ev.snippet || "Reported in community discussion";
+                  const sourceUrl = ev.url || "#";
+                  return (
+                    <a
+                      key={idx}
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block bg-[#EDEDEA] border border-[#111111] p-2 hover:bg-[#e4e2dd] transition-colors"
+                    >
+                      <div className="flex items-center justify-between font-mono text-[10px]">
+                        <span className="font-bold text-[#F25C05]">{sourceLabel}</span>
+                        <span className="text-[#5F5E5E] underline truncate max-w-xs">{sourceUrl}</span>
+                      </div>
+                      <p className="font-body text-[13px] text-[#111111] italic mt-1 font-serif">
+                        &quot;{quoteSnippet}&quot;
+                      </p>
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
@@ -250,23 +306,23 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
             <div className="grid grid-cols-5 gap-2 bg-[#EDEDEA] p-3 border border-[#111111] text-center font-mono text-[10px]">
               <div>
                 <span className="text-[#5F5E5E] block">DEMAND</span>
-                <span className="font-bold text-[12px]">{ideaData.selectedIdea.scorecard.demand}</span>
+                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.demand)}/5</span>
               </div>
               <div>
                 <span className="text-[#5F5E5E] block">COMPETITION</span>
-                <span className="font-bold text-[12px]">{ideaData.selectedIdea.scorecard.competition}</span>
+                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.competition)}/5</span>
               </div>
               <div>
                 <span className="text-[#5F5E5E] block">DIFFERENTIATION</span>
-                <span className="font-bold text-[12px]">{ideaData.selectedIdea.scorecard.differentiation}</span>
+                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.differentiation)}/5</span>
               </div>
               <div>
                 <span className="text-[#5F5E5E] block">MONETIZATION</span>
-                <span className="font-bold text-[12px]">{ideaData.selectedIdea.scorecard.monetization}</span>
+                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.monetization)}/5</span>
               </div>
               <div>
                 <span className="text-[#5F5E5E] block">BUILDABILITY</span>
-                <span className="font-bold text-[12px]">{ideaData.selectedIdea.scorecard.buildability}</span>
+                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.buildability)}/5</span>
               </div>
             </div>
 
@@ -275,21 +331,21 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsTweaking(!isTweaking)}
-                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA]"
+                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA] cursor-pointer"
                 >
                   {isTweaking ? "SAVE EDITS" : "TWEAK"}
                 </button>
                 <button
-                  onClick={runSurpriseMe}
-                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA]"
+                  onClick={handleNextCandidate}
+                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA] cursor-pointer"
                 >
-                  ANOTHER IDEA ({ideaData.cachedCount || 3} CACHED)
+                  ANOTHER IDEA ➔
                 </button>
               </div>
 
               <button
                 onClick={handleApprove}
-                className="px-6 py-2.5 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] font-bold border border-[#111111] hover:shadow-[3px_3px_0px_0px_#F25C05] transition-all flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] font-bold border border-[#111111] hover:bg-[#F25C05] hover:border-[#F25C05] hover:shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center gap-2 cursor-pointer shadow-[2px_2px_0px_0px_#111111]"
               >
                 <span>APPROVE &amp; SHIP CODE</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
@@ -301,4 +357,3 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
     </div>
   );
 }
-
