@@ -34,6 +34,9 @@ import { moderationRoutes } from "./modules/moderation/moderation.routes.js";
 import { adminRoutes } from "./modules/api-admin/admin.routes.js";
 import { userRoutes } from "./modules/api-user/user.routes.js";
 import { modelGatewayRoutes } from "./modules/model-gateway/gateway.routes.js";
+import { reviewRoutes } from "./modules/review/review.routes.js";
+import { buildsRoutes } from "./modules/builds/builds.routes.js";
+import { companiesRoutes } from "./modules/companies/companies.routes.js";
 
 export async function createApiServer(): Promise<FastifyInstance> {
   const env = getApiEnv();
@@ -83,6 +86,9 @@ export async function createApiServer(): Promise<FastifyInstance> {
   await app.register(adminRoutes, { prefix: "/api/admin" });
   await app.register(userRoutes, { prefix: "/api/user" });
   await app.register(modelGatewayRoutes, { prefix: "/api/gateway" });
+  await app.register(reviewRoutes, { prefix: "/api/review" });
+  await app.register(buildsRoutes, { prefix: "/api/builds" });
+  await app.register(companiesRoutes, { prefix: "/api/companies" });
 
   return app;
 }

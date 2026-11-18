@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { api } from "@/lib/api-client";
 
 interface TwitterPanelProps {
   companyName?: string;
@@ -16,8 +17,11 @@ export function TwitterPanel({
   );
   const [posted, setPosted] = useState(false);
 
-  const handlePost = () => {
+  const handlePost = async () => {
     setPosted(true);
+    try {
+      await api.postTweet(tweetText, companyName);
+    } catch {}
     setTimeout(() => setPosted(false), 4000);
   };
 

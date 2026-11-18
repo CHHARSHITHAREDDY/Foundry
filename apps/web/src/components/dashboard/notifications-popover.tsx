@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api-client";
 
 export interface NotificationItem {
   id: string;
@@ -100,6 +101,29 @@ export function NotificationsPopover({
       ? notifications.filter((n) => n.category === "approvals")
       : notifications;
 
+  // Fetch from backend
+  useEffect(() => {
+    if (!isOpen) return;
+    api.getNotifications().then((res) => {
+      if (res && res.notifications && res.notifications.length > 0) {
+        // preserve icons while merging backend items
+        setNotifications((prev) =>
+          res.notifications.map((bn: any, idx: number) => ({
+            id: bn.id || `notif-${idx}`,
+            title: bn.title,
+            timestamp: bn.timestamp || "RECENT",
+            description: bn.message || bn.description,
+            category: (bn.type?.toLowerCase() || "builds") as any,
+            unread: !bn.read,
+            icon: prev[idx]?.icon || "notifications",
+            iconBg: prev[idx]?.iconBg || "bg-surface-container",
+            iconColor: prev[idx]?.iconColor || "text-primary",
+          }))
+        );
+      }
+    }).catch(() => {});
+  }, [isOpen]);
+
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
@@ -108,6 +132,7 @@ export function NotificationsPopover({
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
     );
+    api.markNotificationRead(id).catch(() => {});
   };
 
   // Close on ESC and click outside

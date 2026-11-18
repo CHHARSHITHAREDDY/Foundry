@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChatMessage, ChatMessageItem } from "./chat-message";
 import { ChatComposer } from "./chat-composer";
+import { api } from "@/lib/api-client";
 
 const INITIAL_COMPANION_MESSAGES: ChatMessageItem[] = [
   {
@@ -47,7 +48,7 @@ export function AssistantChat({
     }
   }, [messages]);
 
-  const handleSendMessage = (text: string, file?: File) => {
+  const handleSendMessage = async (text: string, file?: File) => {
     const userMsg: ChatMessageItem = {
       id: String(Date.now()),
       sender: "user",
@@ -63,7 +64,21 @@ export function AssistantChat({
       onNewTaskFromChat?.(text);
     }
 
-    // Ember AI automated response
+    try {
+      const res = await api.chatWithCompanion(text, companyName);
+      if (res && res.response) {
+        const emberMsg: ChatMessageItem = {
+          id: String(Date.now() + 1),
+          sender: "ember",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          content: res.response,
+        };
+        setMessages((prev) => [...prev, emberMsg]);
+        return;
+      }
+    } catch {}
+
+    // Fallback response
     setTimeout(() => {
       const emberMsg: ChatMessageItem = {
         id: String(Date.now() + 1),

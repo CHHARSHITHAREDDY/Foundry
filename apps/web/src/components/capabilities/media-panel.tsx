@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { api } from "@/lib/api-client";
 
 export function MediaPanel() {
   const [activeMedia, setActiveMedia] = useState<"image" | "video">("image");
@@ -8,14 +9,15 @@ export function MediaPanel() {
   const [generating, setGenerating] = useState(false);
   const [generatedCount, setGeneratedCount] = useState(2);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      setGeneratedCount((prev) => prev + 1);
-      setPrompt("");
-    }, 1800);
+    try {
+      await api.generateMedia({ prompt, type: activeMedia });
+    } catch {}
+    setGenerating(false);
+    setGeneratedCount((prev) => prev + 1);
+    setPrompt("");
   };
 
   return (

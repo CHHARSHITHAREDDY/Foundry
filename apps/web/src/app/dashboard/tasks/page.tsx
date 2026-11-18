@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/dashboard/command-palette";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { TaskCard, TaskItem } from "@/components/tasks/task-card";
 import { NewTaskDialog, NewTaskPayload } from "@/components/tasks/new-task-dialog";
+import { api } from "@/lib/api-client";
 
 const INITIAL_TASKS: TaskItem[] = [
   {
@@ -134,7 +135,30 @@ function TasksContent() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const handleCreateTask = (payload: NewTaskPayload) => {
+  // Fetch tasks from backend on mount
+  useEffect(() => {
+    api.getTasks().then((res) => {
+      if (res && res.tasks && res.tasks.length > 0) {
+        setTasks(res.tasks);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleCreateTask = async (payload: NewTaskPayload) => {
+    try {
+      const created = await api.createTask({
+        specification: payload.specification,
+        type: payload.type,
+        priority: payload.priority,
+        credits: payload.estimatedCredits,
+        requiresApproval: payload.requiresApproval,
+      });
+      if (created) {
+        setTasks((prev) => [created, ...prev]);
+        return;
+      }
+    } catch {}
+
     const nextCodeNumber = tasks.length + 35;
     const newTask: TaskItem = {
       id: `t-${Date.now()}`,
@@ -147,6 +171,33 @@ function TasksContent() {
       credits: payload.estimatedCredits,
     };
     setTasks((prev) => [newTask, ...prev]);
+  };
+
+  const handleApproveTask = async (task: TaskItem) => {
+    try {
+      await api.approveTask(task.id);
+    } catch {}
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: "DONE" as const, completedAt: "Just now" } : t))
+    );
+  };
+
+  const handleCancelTask = async (task: TaskItem) => {
+    try {
+      await api.cancelTask(task.id);
+    } catch {}
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: "FAILED" as const } : t))
+    );
+  };
+
+  const handleRetryTask = async (task: TaskItem) => {
+    try {
+      await api.retryTask(task.id);
+    } catch {}
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: "RUNNING" as const, progress: 10 } : t))
+    );
   };
 
   const runningCount = tasks.filter((t) => t.status === "RUNNING").length;
@@ -300,7 +351,9 @@ function TasksContent() {
                         key={task.id}
                         task={task}
                         onReview={() => router.push("/dashboard/review")}
-                        onApprove={() => router.push("/dashboard/deploy")}
+                        onApprove={() => handleApproveTask(task)}
+                        onCancel={() => handleCancelTask(task)}
+                        onRetry={() => handleRetryTask(task)}
                       />
                     ))
                   )}
@@ -336,7 +389,9 @@ function TasksContent() {
                           key={task.id}
                           task={task}
                           onReview={() => router.push("/dashboard/review")}
-                          onApprove={() => router.push("/dashboard/deploy")}
+                          onApprove={() => handleApproveTask(task)}
+                          onCancel={() => handleCancelTask(task)}
+                          onRetry={() => handleRetryTask(task)}
                         />
                       ))}
                   </div>

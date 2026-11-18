@@ -9,6 +9,7 @@ import { NotificationsPopover } from "@/components/dashboard/notifications-popov
 import { AgentMascot } from "@/components/studio/agent-mascot";
 import { LiveLogStream } from "@/components/studio/live-log-stream";
 import { BuildTimeline, PipelineStep } from "@/components/studio/build-timeline";
+import { api } from "@/lib/api-client";
 
 function DeployProgressContent() {
   const router = useRouter();
@@ -38,6 +39,28 @@ function DeployProgressContent() {
     }, 3000);
     return () => clearInterval(progressTimer);
   }, []);
+
+  useEffect(() => {
+    api.getDeployStatus().then((status) => {
+      if (status && typeof status.propagationProgress === "number") {
+        setPropagationProgress(status.propagationProgress);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleCompleteDeploy = async () => {
+    try {
+      await api.completeDeploy();
+    } catch {}
+    router.push("/dashboard/company?company=PriceWatch");
+  };
+
+  const handleConfirmAbort = async () => {
+    try {
+      await api.cancelDeploy();
+    } catch {}
+    router.push("/dashboard/build");
+  };
 
   const formatTimer = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -168,7 +191,7 @@ function DeployProgressContent() {
               {isFullyDeployed ? (
                 <button
                   type="button"
-                  onClick={() => router.push("/dashboard/company?company=PriceWatch")}
+                  onClick={handleCompleteDeploy}
                   className="px-5 py-2.5 bg-[#15803D] text-white hover:bg-[#15803D]/90 border-2 border-[#111111] font-mono text-xs uppercase font-bold tracking-wider transition-all shadow-[3px_3px_0px_0px_#111111]"
                 >
                   ENTER LIVE CONSOLE ➔
@@ -176,7 +199,7 @@ function DeployProgressContent() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => router.push("/dashboard/company?company=PriceWatch")}
+                  onClick={handleCompleteDeploy}
                   className="px-4 py-2 bg-surface text-on-surface hover:bg-surface-container border-2 border-[#111111] font-mono text-xs uppercase font-bold transition-all shadow-[2px_2px_0px_0px_#111111]"
                 >
                   Skip to Company Console ➔
@@ -413,7 +436,7 @@ function DeployProgressContent() {
                 Resume Deployment
               </button>
               <button
-                onClick={() => router.push("/dashboard/build")}
+                onClick={handleConfirmAbort}
                 className="px-4 py-1.5 bg-error text-white font-mono text-xs uppercase font-bold"
               >
                 Confirm Abort

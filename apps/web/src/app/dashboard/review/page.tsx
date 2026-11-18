@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/dashboard/command-palette";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { DiffViewer, DiffFile } from "@/components/studio/diff-viewer";
 import { QaReport } from "@/components/studio/qa-report";
+import { api } from "@/lib/api-client";
 
 // Sample files with realistic diff data
 const REVIEW_FILES: DiffFile[] = [
@@ -166,20 +167,45 @@ function CodeReviewContent() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const activeFile: DiffFile = (REVIEW_FILES.find((f) => f.id === selectedFileId) || REVIEW_FILES[0]) as DiffFile;
+  const [files, setFiles] = useState<DiffFile[]>(REVIEW_FILES);
+  const activeFile: DiffFile = (files.find((f) => f.id === selectedFileId) || files[0]) as DiffFile;
 
-  const handleExportAudit = () => {
+  useEffect(() => {
+    api.getReviewAudit().then((res) => {
+      if (res && res.files && res.files.length > 0) {
+        setFiles(res.files);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleExportAudit = async () => {
     setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      const auditMd = `# AUDIT REPORT: PriceWatch for Shopify\nStage: 05 -> 06 Review Gate\nCommit: #e9a2b84\nStatus: APPROVED WITH 2 FIXES\n\n- Security P1 Fixed: Shopify GraphQL rate limit handling\n- Invariant P2 Fixed: Unbounded retry loop in HMAC verification\n- Spec Gap P3 Accepted: Optional margin alert audio tone\n- Health Info Passed: 0 any type assertions`;
+    try {
+      const res = await api.exportReviewAudit();
+      const blob = new Blob([res.content], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename || "audit-report-e9a2b84.md";
+      a.click();
+    } catch {
+      const auditMd = `# AUDIT REPORT: PriceWatch for Shopify\nStage: 05 -> 06 Review Gate\nCommit: #e9a2b84\nStatus: APPROVED WITH 2 FIXES`;
       const blob = new Blob([auditMd], { type: "text/markdown" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "audit-report-e9a2b84.md";
       a.click();
-    }, 600);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleProceedToDeploy = async () => {
+    try {
+      await api.approveReview();
+    } catch {}
+    router.push("/dashboard/deploy");
   };
 
   return (
@@ -253,7 +279,7 @@ function CodeReviewContent() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/deploy")}
+                onClick={handleProceedToDeploy}
                 className="px-5 py-2 bg-primary text-white hover:bg-primary-container border-2 border-[#111111] font-mono text-xs uppercase font-bold tracking-wider transition-all shadow-[3px_3px_0px_0px_#111111]"
               >
                 Proceed to Deploy ➔

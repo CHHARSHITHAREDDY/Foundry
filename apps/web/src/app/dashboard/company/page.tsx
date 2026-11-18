@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -15,6 +15,7 @@ import { RoadmapCard } from "@/components/tasks/roadmap-card";
 import { NewTaskDialog, NewTaskPayload } from "@/components/tasks/new-task-dialog";
 import { CapabilityGrid } from "@/components/capabilities/capability-grid";
 import { AssistantChat } from "@/components/studio/assistant-chat";
+import { api } from "@/lib/api-client";
 
 const COMPANY_TASKS: TaskItem[] = [
   {
@@ -79,7 +80,38 @@ function CompanyConsoleContent() {
   const [autoRunEnabled, setAutoRunEnabled] = useState(true);
   const [nightTasksEnabled, setNightTasksEnabled] = useState(true);
 
-  const handleCreateTask = (payload: NewTaskPayload) => {
+  // Sync state from backend
+  useEffect(() => {
+    api.getCompany(companyName).then((c) => {
+      if (c) {
+        if (typeof c.autoRunEnabled === "boolean") setAutoRunEnabled(c.autoRunEnabled);
+        if (typeof c.nightTasksEnabled === "boolean") setNightTasksEnabled(c.nightTasksEnabled);
+      }
+    }).catch(() => {});
+
+    api.getTasks().then((res) => {
+      if (res && res.tasks && res.tasks.length > 0) {
+        setTasks(res.tasks);
+      }
+    }).catch(() => {});
+  }, [companyName]);
+
+  const handleCreateTask = async (payload: NewTaskPayload) => {
+    try {
+      const created = await api.createTask({
+        specification: payload.specification,
+        type: payload.type,
+        priority: payload.priority,
+        credits: payload.estimatedCredits,
+        requiresApproval: payload.requiresApproval,
+        companyName,
+      });
+      if (created) {
+        setTasks((prev) => [created, ...prev]);
+        return;
+      }
+    } catch {}
+
     const nextCode = tasks.length + 41;
     const newTask: TaskItem = {
       id: `task-${Date.now()}`,
@@ -92,6 +124,20 @@ function CompanyConsoleContent() {
       credits: payload.estimatedCredits,
     };
     setTasks((prev) => [newTask, ...prev]);
+  };
+
+  const handleToggleAuto = async (enabled: boolean) => {
+    setAutoRunEnabled(enabled);
+    try {
+      await api.toggleCompanyAutoRun(companyName, enabled);
+    } catch {}
+  };
+
+  const handleToggleNight = async (enabled: boolean) => {
+    setNightTasksEnabled(enabled);
+    try {
+      await api.toggleCompanyNightTasks(companyName, enabled);
+    } catch {}
   };
 
   return (
@@ -215,8 +261,8 @@ function CompanyConsoleContent() {
                   currentActivity="Refactoring Shopify GraphQL webhook listener with exponential backoff & rate-limit hedging..."
                   autoEnabled={autoRunEnabled}
                   nightEnabled={nightTasksEnabled}
-                  onAutoToggle={setAutoRunEnabled}
-                  onNightToggle={setNightTasksEnabled}
+                  onAutoToggle={handleToggleAuto}
+                  onNightToggle={handleToggleNight}
                 />
                 <BusinessStats revenue="$0.00" visitors={1} activeInstalls={0} />
                 <WebsitePanel companyName={companyName} endpoint="https://pricewatch-4k2.foundry.app" />

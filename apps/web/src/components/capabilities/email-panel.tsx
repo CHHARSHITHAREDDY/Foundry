@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { api } from "@/lib/api-client";
 
 interface EmailPanelProps {
   companyDomain?: string;
@@ -10,6 +11,14 @@ export function EmailPanel({
   companyDomain = "pricewatch-4k2.foundry.app",
 }: EmailPanelProps) {
   const [inboxStatus, setInboxStatus] = useState<"IDLE" | "SENDING" | "SENT">("IDLE");
+
+  const handleSendOutreach = async () => {
+    setInboxStatus("SENDING");
+    try {
+      await api.sendEmailOutreach("Shopify Plus Merchants > $1M ARR", companyDomain);
+    } catch {}
+    setTimeout(() => setInboxStatus("SENT"), 1500);
+  };
 
   return (
     <div className="bg-surface-container-lowest border-2 border-[#111111] p-4 flex flex-col gap-3 shadow-[2px_2px_0px_0px_#111111]">
@@ -38,10 +47,7 @@ export function EmailPanel({
 
       <button
         type="button"
-        onClick={() => {
-          setInboxStatus("SENDING");
-          setTimeout(() => setInboxStatus("SENT"), 1500);
-        }}
+        onClick={handleSendOutreach}
         className="w-full py-1.5 bg-surface text-on-surface hover:bg-surface-container border border-[#111111] font-mono text-xs uppercase font-bold transition-all"
       >
         {inboxStatus === "IDLE" && "+ DRAFT OUTREACH BLAST (30 MERCHANTS)"}

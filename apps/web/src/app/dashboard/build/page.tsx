@@ -7,6 +7,7 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { BuildSpecDrawer, BuildSpecTab } from "@/components/studio/build-spec-drawer";
+import { api } from "@/lib/api-client";
 
 interface TerminalLine {
   id: string;
@@ -996,7 +997,10 @@ function BuildConsoleInner() {
                 Continue Build
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await api.cancelBuild();
+                  } catch {}
                   setCancelModalOpen(false);
                   router.push("/dashboard");
                 }}
