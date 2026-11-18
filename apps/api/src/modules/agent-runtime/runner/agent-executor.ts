@@ -5,11 +5,13 @@ import { UiStage } from "../stages/ui.stage.js";
 import { IntegratorStage, ReviewerStage, DeployerStage } from "../stages/integrator.stage.js";
 import { QaStage, QaReport } from "../stages/qa.stage.js";
 import { RealtimeEventHub } from "../../realtime/event-hub.js";
+import { sandboxService, SandboxExecutionResult } from "../../sandbox/services/sandbox.service.js";
 
 export interface SwarmBuildResult {
   runId: string;
   buildSpec: BuildSpec;
   generatedFiles: Record<string, string>;
+  sandboxResult: SandboxExecutionResult;
   qaReport: QaReport;
   reviewerAudit: { approved: boolean; securityScore: number; auditFindings: string[] };
   deployment: { liveUrl: string; deploymentId: string; status: string };
@@ -24,6 +26,7 @@ export class AgentSwarmExecutor {
   private qa = new QaStage();
   private reviewer = new ReviewerStage();
   private deployer = new DeployerStage();
+  private sandbox = sandboxService;
   private hub = RealtimeEventHub.getInstance();
 
   async executeBuild(
@@ -57,9 +60,19 @@ export class AgentSwarmExecutor {
     const intResult = await this.integrator.execute(beResult.files, uiResult.files);
     completedStages.push("INTEGRATING");
 
+    // Stage 3.5: Physical Sandbox Hydration to disk
+    notify("SANDBOX", `Hydrating physical venture repository at builds/${runId}...`);
+    const sandboxResult = await this.sandbox.hydrateSandbox(runId, intResult.mergedFiles, buildSpec);
+    this.hub.broadcast("agent:log", {
+      runId,
+      stage: "SANDBOX",
+      level: "info",
+      message: `Hydrated ${sandboxResult.filesWritten} files to disk in ${sandboxResult.durationMs}ms at ${sandboxResult.sandboxPath}`,
+    });
+
     // Stage 4: QA (Vision + Playwright)
     notify("QA", "QA agent is driving headless Playwright journeys & checking visual layout...");
-    const qaReport = await this.qa.execute();
+    const qaReport = await this.qa.execute(sandboxResult.sandboxPath);
     this.hub.broadcast("qa:screenshot", { runId, title: "Dashboard Loaded", url: "/dashboard" });
     completedStages.push("QA");
 
@@ -73,12 +86,18 @@ export class AgentSwarmExecutor {
     const deployment = await this.deployer.execute(buildSpec);
     completedStages.push("DEPLOY");
 
-    this.hub.broadcast("build:complete", { runId, liveUrl: deployment.liveUrl });
+    this.hub.broadcast("build:complete", {
+      runId,
+      liveUrl: deployment.liveUrl,
+      filesWritten: sandboxResult.filesWritten,
+      sandboxPath: sandboxResult.sandboxPath,
+    });
 
     return {
       runId,
       buildSpec,
       generatedFiles: intResult.mergedFiles,
+      sandboxResult,
       qaReport,
       reviewerAudit: reviewResult,
       deployment,
@@ -86,4 +105,3 @@ export class AgentSwarmExecutor {
     };
   }
 }
-
