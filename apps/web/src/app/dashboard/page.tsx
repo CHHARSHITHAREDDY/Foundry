@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   const handleSelectCompany = (company: string) => {
     setSelectedCompany(company);
-    setCurrentTab("overview");
+    router.push(`/dashboard/company?company=${encodeURIComponent(company)}`);
   };
 
   const breadcrumbName =

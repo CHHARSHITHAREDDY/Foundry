@@ -82,6 +82,21 @@ export function CommandPalette({
     },
     // GROUP 2: COMPANIES
     {
+      id: "company-pricewatch",
+      group: "companies",
+      title: "PriceWatch",
+      subtitle: "Margin guardrail for Shopify Plus · Live on Edge · 285 PoPs",
+      tag: "LIVE",
+      badgeColor: "text-[#15803D]",
+      statusDot: "bg-[#15803D]",
+      shortcut: "⌘0",
+      action: () => {
+        if (onSelectCompany) onSelectCompany("PriceWatch");
+        else router.push("/dashboard/company?company=PriceWatch");
+        onClose();
+      },
+    },
+    {
       id: "company-dispatch",
       group: "companies",
       title: "Dispatch",
@@ -204,6 +219,45 @@ export function CommandPalette({
       action: () => {
         if (onNavigate) onNavigate("launch");
         else router.push("/dashboard/launch");
+        onClose();
+      },
+    },
+    {
+      id: "page-review",
+      group: "pages",
+      title: "Code Review Gate // QA Verification",
+      subtitle: "3-panel workbench: AST diff viewer, Daedalus annotations & invariants audit",
+      icon: "rule",
+      shortcut: "G then C",
+      action: () => {
+        if (onNavigate) onNavigate("review");
+        else router.push("/dashboard/review");
+        onClose();
+      },
+    },
+    {
+      id: "page-deploy",
+      group: "pages",
+      title: "Active Stage 07 Deploy // Edge Ingress",
+      subtitle: "Global Anycast propagation, DNS sync & edge container rollout",
+      icon: "cloud_upload",
+      shortcut: "G then D",
+      action: () => {
+        if (onNavigate) onNavigate("deploy");
+        else router.push("/dashboard/deploy");
+        onClose();
+      },
+    },
+    {
+      id: "page-tasks",
+      group: "pages",
+      title: "Sprint Tasks Backlog & Queue",
+      subtitle: "Task orchestration, Playwright assertions & natural language spec parser",
+      icon: "checklist",
+      shortcut: "G then T",
+      action: () => {
+        if (onNavigate) onNavigate("tasks");
+        else router.push("/dashboard/tasks");
         onClose();
       },
     },

@@ -90,6 +90,13 @@ export function Sidebar({
             {companiesOpen && (
               <div className="ml-space-md pl-space-sm my-1 border-l-2 border-[#111111] flex flex-col gap-0.5">
                 <button
+                  onClick={() => onSelectCompany("PriceWatch")}
+                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
+                >
+                  <span className="font-bold text-primary">PriceWatch</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
+                </button>
+                <button
                   onClick={() => onSelectCompany("Dispatch")}
                   className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
                 >

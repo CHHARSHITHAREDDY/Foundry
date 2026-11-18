@@ -342,30 +342,34 @@ function BuildConsoleInner() {
                     <div className="h-1 w-full bg-surface-variant mt-0.5"></div>
                   </div>
 
-                  {/* Node 6: QA (Future) */}
-                  <div className="flex flex-col gap-1 p-2 bg-surface-container-low border border-surface-variant text-secondary">
-                    <div className="flex items-center justify-between">
-                      <span className="font-label-sm text-label-sm">6. QA TEST</span>
-                      <span className="font-label-sm text-[10px] text-outline">QUEUE</span>
-                    </div>
-                    <span className="font-label-sm text-[10px] text-secondary line-clamp-1">
-                      Playwright E2E suite
-                    </span>
-                    <div className="h-1 w-full bg-surface-variant mt-0.5"></div>
-                  </div>
-
-                  {/* Node 7: DEPLOY (Future / Clickable to view completion screen) */}
+                  {/* Node 6: QA & CODE REVIEW GATE */}
                   <div
-                    onClick={() => router.push("/dashboard/launch")}
-                    className="flex flex-col gap-1 p-2 bg-surface-container-low border border-surface-variant text-secondary cursor-pointer hover:border-on-surface hover:text-on-surface transition-all"
-                    title="Click to preview Completed Launch View"
+                    onClick={() => router.push("/dashboard/review")}
+                    className="flex flex-col gap-1 p-2 bg-surface-container-lowest border-2 border-primary text-on-surface cursor-pointer hover:bg-primary-fixed/20 shadow-[2px_2px_0px_0px_#111111] transition-all"
+                    title="Click to view Code Review & QA Verification Gate"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-label-sm text-label-sm">7. DEPLOY</span>
-                      <span className="font-label-sm text-[10px] text-primary font-bold">VIEW LAUNCH</span>
+                      <span className="font-label-sm text-label-sm font-bold">6. QA GATE</span>
+                      <span className="font-label-sm text-[10px] text-white bg-primary px-1 font-bold">REVIEW</span>
                     </div>
                     <span className="font-label-sm text-[10px] text-secondary line-clamp-1">
-                      Vercel Edge &amp; Cron
+                      Playwright &amp; Invariants
+                    </span>
+                    <div className="h-1 w-full bg-[#15803D] mt-0.5"></div>
+                  </div>
+
+                  {/* Node 7: DEPLOY (Clickable to view Stage 07 Deploy) */}
+                  <div
+                    onClick={() => router.push("/dashboard/deploy")}
+                    className="flex flex-col gap-1 p-2 bg-surface-container-low border border-surface-variant text-secondary cursor-pointer hover:border-on-surface hover:text-on-surface transition-all"
+                    title="Click to preview Active Stage 07 Deployment"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-label-sm text-label-sm font-bold">7. DEPLOY</span>
+                      <span className="font-label-sm text-[10px] text-primary font-bold">STAGE 07</span>
+                    </div>
+                    <span className="font-label-sm text-[10px] text-secondary line-clamp-1">
+                      Cloudflare Edge &amp; DNS
                     </span>
                     <div className="h-1 w-full bg-surface-variant mt-0.5"></div>
                   </div>
@@ -941,11 +945,20 @@ function BuildConsoleInner() {
                 </button>
 
                 <button
-                  onClick={() => router.push("/dashboard/launch")}
+                  onClick={() => router.push("/dashboard/review")}
+                  className="px-2.5 py-1 bg-surface-container-low text-on-surface border border-on-surface hover:bg-surface-container font-label-sm text-label-sm font-bold uppercase tracking-wider flex items-center gap-1 shadow-[2px_2px_0px_0px_#111111]"
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-[14px]">rule</span>
+                  <span>Review Code</span>
+                </button>
+
+                <button
+                  onClick={() => router.push("/dashboard/deploy")}
                   className="px-2.5 py-1 bg-primary text-on-primary border border-on-surface hover:bg-primary-container font-label-sm text-label-sm font-bold uppercase tracking-wider flex items-center gap-1 shadow-[2px_2px_0px_0px_#ca4b00]"
                   type="button"
                 >
-                  <span>View Launch Screen</span>
+                  <span>Stage 07 Deploy</span>
                   <span className="material-symbols-outlined text-[14px]">rocket_launch</span>
                 </button>
               </div>
