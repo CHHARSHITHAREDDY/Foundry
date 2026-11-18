@@ -1373,7 +1373,7 @@ function ValidationGateContent() {
               {/* Primary High-Impact Approval Button */}
               {mode !== "nogo" ? (
                 <button
-                  onClick={() => setBuildModalOpen(true)}
+                  onClick={() => router.push("/dashboard/build")}
                   className={`h-10 px-space-lg text-[#ffffff] text-label-md uppercase font-bold tracking-widest border-2 border-[#111111] shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center gap-space-xs cursor-pointer ${
                     mode === "go"
                       ? "bg-[#111111] hover:bg-primary"

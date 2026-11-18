@@ -194,3 +194,5 @@ export function Sidebar({
   );
 }
 
+export { Sidebar as DashboardSidebar };
+

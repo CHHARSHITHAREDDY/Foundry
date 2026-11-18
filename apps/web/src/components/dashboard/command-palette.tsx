@@ -182,6 +182,32 @@ export function CommandPalette({
       },
     },
     {
+      id: "page-build",
+      group: "pages",
+      title: "Autonomous Build Pipeline // Live Console",
+      subtitle: "Tri-split execution runner: Daedalus synthesis, terminal stream & sandbox preview",
+      icon: "precision_manufacturing",
+      shortcut: "G then B",
+      action: () => {
+        if (onNavigate) onNavigate("build");
+        else router.push("/dashboard/build");
+        onClose();
+      },
+    },
+    {
+      id: "page-launch",
+      group: "pages",
+      title: "Production Launch // Deployment Delivery",
+      subtitle: "Verified edge canonical host, performance metrics, tests & artifacts",
+      icon: "bolt",
+      shortcut: "G then L",
+      action: () => {
+        if (onNavigate) onNavigate("launch");
+        else router.push("/dashboard/launch");
+        onClose();
+      },
+    },
+    {
       id: "page-new",
       group: "pages",
       title: "Genesis Protocol // New Venture",
