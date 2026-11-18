@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { CommandPalette } from "@/components/dashboard/command-palette";
@@ -9,10 +10,13 @@ import { VenturesView } from "@/components/dashboard/ventures-view";
 import { SurpriseModal } from "@/components/studio/surprise-modal";
 import { IdeaModal } from "@/components/studio/idea-modal";
 import { BuildModal } from "@/components/studio/build-modal";
+import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState<"onboarding" | "overview" | "billing" | "settings">("onboarding");
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [surpriseOpen, setSurpriseOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
@@ -62,7 +66,7 @@ export default function DashboardPage() {
           setSelectedCompany(null);
           setCurrentTab(tab);
         }}
-        onNewCompany={() => setIdeaOpen(true)}
+        onNewCompany={() => router.push("/dashboard/new")}
         onBuyCredits={() => setCurrentTab("billing")}
         onSelectCompany={handleSelectCompany}
       />
@@ -73,7 +77,13 @@ export default function DashboardPage() {
         <DashboardHeader
           currentBreadcrumb={breadcrumbName}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          onNotificationsClick={() => alert("Notification: Dispatch node completed 2,840 email delivers.")}
+          onNotificationsClick={() => setNotificationsOpen((prev) => !prev)}
+        />
+
+        {/* Notifications Popover Drawer */}
+        <NotificationsPopover
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
         />
 
         {/* Viewport Content */}
@@ -89,7 +99,7 @@ export default function DashboardPage() {
 
             {currentTab === "overview" && (
               <VenturesView
-                onNewCompany={() => setIdeaOpen(true)}
+                onNewCompany={() => router.push("/dashboard/new")}
                 onSelectCompany={handleSelectCompany}
               />
             )}

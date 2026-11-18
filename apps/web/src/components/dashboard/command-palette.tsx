@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onNewCompany: () => void;
-  onBuyCredits: () => void;
-  onSelectCompany: (company: string) => void;
-  onNavigate: (path: string) => void;
+  onNewCompany?: () => void;
+  onBuyCredits?: () => void;
+  onSelectCompany?: (company: string) => void;
+  onNavigate?: (path: string) => void;
 }
 
 interface CommandItem {
@@ -32,6 +33,7 @@ export function CommandPalette({
   onSelectCompany,
   onNavigate,
 }: CommandPaletteProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +49,8 @@ export function CommandPalette({
       icon: "add",
       shortcut: "ENTER ↵",
       action: () => {
-        onNewCompany();
+        if (onNewCompany) onNewCompany();
+        else router.push("/dashboard/new");
         onClose();
       },
     },
@@ -59,7 +62,21 @@ export function CommandPalette({
       icon: "bolt",
       shortcut: "⌘B",
       action: () => {
-        onBuyCredits();
+        if (onBuyCredits) onBuyCredits();
+        else router.push("/pricing");
+        onClose();
+      },
+    },
+    {
+      id: "action-scout",
+      group: "actions",
+      title: "Launch Heuristic Scout",
+      subtitle: "Reconnaissance crawlers scan Reddit, HN & Product Hunt",
+      tag: "SCOUT",
+      icon: "radar",
+      shortcut: "⌘R",
+      action: () => {
+        router.push("/dashboard/scout");
         onClose();
       },
     },
@@ -74,7 +91,8 @@ export function CommandPalette({
       statusDot: "bg-[#15803D]",
       shortcut: "⌘1",
       action: () => {
-        onSelectCompany("Dispatch");
+        if (onSelectCompany) onSelectCompany("Dispatch");
+        else router.push("/dashboard?company=Dispatch");
         onClose();
       },
     },
@@ -88,7 +106,8 @@ export function CommandPalette({
       statusDot: "bg-primary",
       shortcut: "⌘2",
       action: () => {
-        onSelectCompany("Codex AI");
+        if (onSelectCompany) onSelectCompany("Codex AI");
+        else router.push("/dashboard?company=Codex%20AI");
         onClose();
       },
     },
@@ -102,7 +121,8 @@ export function CommandPalette({
       statusDot: "bg-[#D97706]",
       shortcut: "⌘3",
       action: () => {
-        onSelectCompany("Vesper");
+        if (onSelectCompany) onSelectCompany("Vesper");
+        else router.push("/dashboard?company=Vesper");
         onClose();
       },
     },
@@ -116,11 +136,51 @@ export function CommandPalette({
       statusDot: "bg-error",
       shortcut: "⌘4",
       action: () => {
-        onSelectCompany("Pulse Wire");
+        if (onSelectCompany) onSelectCompany("Pulse Wire");
+        else router.push("/dashboard?company=Pulse%20Wire");
         onClose();
       },
     },
     // GROUP 3: PAGES
+    {
+      id: "page-notifications",
+      group: "pages",
+      title: "Notifications & Audit Feed",
+      subtitle: "Event stream, domain approvals, pipeline results",
+      icon: "notifications",
+      shortcut: "G then N",
+      action: () => {
+        if (onNavigate) onNavigate("notifications");
+        else router.push("/dashboard/notifications");
+        onClose();
+      },
+    },
+    {
+      id: "page-scout",
+      group: "pages",
+      title: "Live Heuristic Recon (Scout)",
+      subtitle: "Reddit, HN, Product Hunt real-time signal stream",
+      icon: "radar",
+      shortcut: "G then R",
+      action: () => {
+        if (onNavigate) onNavigate("scout");
+        else router.push("/dashboard/scout");
+        onClose();
+      },
+    },
+    {
+      id: "page-new",
+      group: "pages",
+      title: "Genesis Protocol // New Venture",
+      subtitle: "Initialize new company via heuristic signal or founder thesis",
+      icon: "rocket_launch",
+      shortcut: "G then G",
+      action: () => {
+        if (onNavigate) onNavigate("new");
+        else router.push("/dashboard/new");
+        onClose();
+      },
+    },
     {
       id: "page-billing",
       group: "pages",
@@ -129,7 +189,8 @@ export function CommandPalette({
       icon: "receipt_long",
       shortcut: "G then B",
       action: () => {
-        onNavigate("billing");
+        if (onNavigate) onNavigate("billing");
+        else router.push("/dashboard?tab=billing");
         onClose();
       },
     },
@@ -141,7 +202,8 @@ export function CommandPalette({
       icon: "tune",
       shortcut: "G then S",
       action: () => {
-        onNavigate("settings");
+        if (onNavigate) onNavigate("settings");
+        else router.push("/dashboard?tab=settings");
         onClose();
       },
     },
