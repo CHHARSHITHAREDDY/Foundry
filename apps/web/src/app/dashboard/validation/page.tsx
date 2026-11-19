@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
@@ -9,6 +9,9 @@ import { CommandPalette } from "@/components/dashboard/command-palette";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { TweakSpecModal, SpecData } from "@/components/studio/tweak-spec-modal";
 import { BuildModal } from "@/components/studio/build-modal";
+import { StudioApiClient } from "@/lib/api-client";
+
+const api = new StudioApiClient();
 
 type VerdictMode = "go" | "changes" | "deficit" | "nogo";
 
@@ -45,6 +48,48 @@ function ValidationGateContent() {
   const [selectedPivots, setSelectedPivots] = useState<number[]>([1]); // Pivot 1 selected by default in "changes"
   const [rescoreApplied, setRescoreApplied] = useState(false);
   const [expandedCrawlActive, setExpandedCrawlActive] = useState(false);
+
+  useEffect(() => {
+    async function loadActiveDossier() {
+      try {
+        let loadedIdea: any = null;
+        if (typeof window !== "undefined") {
+          const stored = sessionStorage.getItem("active_scouted_idea");
+          if (stored) {
+            try {
+              loadedIdea = JSON.parse(stored);
+            } catch {}
+          }
+        }
+        if (!loadedIdea) {
+          loadedIdea = await api.getNextCandidate();
+        }
+        if (loadedIdea && loadedIdea.title) {
+          setSpec({
+            name: loadedIdea.title,
+            thesis: loadedIdea.tagline || loadedIdea.problem,
+            targetAudience: loadedIdea.targetCustomer,
+            problemStatement: loadedIdea.problem,
+            moat: loadedIdea.archetype || "Autonomous Micro-SaaS Wedge",
+            mvpScope: loadedIdea.mvpScope?.screens || [
+              "Landing Page & Onboarding",
+              "Live Monitoring & Alerts Dashboard",
+              "Configuration & Webhook Settings",
+            ],
+            pricing: loadedIdea.competitors?.[0]?.pricing
+              ? `${loadedIdea.competitors[0].pricing} (Fast ROI)`
+              : "$29 - $79/mo recurring B2B",
+          });
+
+          const vStatus = loadedIdea.verdict?.status;
+          if (vStatus === "GO") setMode("go");
+          else if (vStatus === "GO_WITH_CHANGES") setMode("changes");
+          else if (vStatus === "NO_GO") setMode("nogo");
+        }
+      } catch {}
+    }
+    loadActiveDossier();
+  }, []);
 
   const togglePivot = (pivotNum: number) => {
     setSelectedPivots((prev) =>
@@ -129,54 +174,17 @@ function ValidationGateContent() {
 
         <main className="w-full pt-14 flex-1 bg-surface flex flex-col pb-28">
           <div className="flex flex-col w-full">
-            {/* DEVELOPER VERDICT STATE SWITCHER STRIP */}
-            <div className="w-full bg-[#111111] text-[#ffffff] px-space-md py-1.5 flex flex-wrap items-center justify-between gap-space-sm font-mono text-[11px] select-none">
+            {/* FOUNDER VALIDATION TELEMETRY BAR */}
+            <div className="w-full bg-[#111111] text-[#ffffff] px-space-md py-2 flex flex-wrap items-center justify-between gap-space-sm font-mono text-[11px] select-none">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-primary rounded-full animate-ping" />
-                <span className="font-bold text-primary">EVALUATION SIMULATION ENGINE:</span>
-                <span className="text-surface-variant">Switch verdict state to review all dossier outcomes:</span>
+                <span className="font-bold text-primary">FOUNDER VALIDATION GATE:</span>
+                <span className="text-surface-variant">Review product specifications, market signals, and approve autonomous build.</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setMode("go")}
-                  className={`px-2 py-0.5 border cursor-pointer font-bold transition-all ${
-                    mode === "go"
-                      ? "bg-[#15803D] text-[#ffffff] border-[#15803D]"
-                      : "bg-surface-container-high text-secondary hover:text-white border-transparent"
-                  }`}
-                >
-                  01 GO (88)
-                </button>
-                <button
-                  onClick={() => setMode("changes")}
-                  className={`px-2 py-0.5 border cursor-pointer font-bold transition-all ${
-                    mode === "changes"
-                      ? "bg-[#D97706] text-[#ffffff] border-[#D97706]"
-                      : "bg-surface-container-high text-secondary hover:text-white border-transparent"
-                  }`}
-                >
-                  02 GO WITH CHANGES (74)
-                </button>
-                <button
-                  onClick={() => setMode("deficit")}
-                  className={`px-2 py-0.5 border cursor-pointer font-bold transition-all ${
-                    mode === "deficit"
-                      ? "bg-[#B45309] text-[#ffffff] border-[#B45309]"
-                      : "bg-surface-container-high text-secondary hover:text-white border-transparent"
-                  }`}
-                >
-                  03 CORPUS DEFICIT (61)
-                </button>
-                <button
-                  onClick={() => setMode("nogo")}
-                  className={`px-2 py-0.5 border cursor-pointer font-bold transition-all ${
-                    mode === "nogo"
-                      ? "bg-error text-white border-error"
-                      : "bg-surface-container-high text-secondary hover:text-white border-transparent"
-                  }`}
-                >
-                  04 NO GO (42)
-                </button>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-[#15803D] text-white font-bold uppercase">
+                  HUMAN CHOICE REQUIRED
+                </span>
               </div>
             </div>
 
@@ -185,87 +193,36 @@ function ValidationGateContent() {
               <div className="flex items-center gap-space-xs text-secondary uppercase tracking-wider">
                 <span>WORKSPACE</span>
                 <span className="text-secondary-fixed-dim">//</span>
-                <span className="text-on-surface font-semibold">SYNDICATE-01</span>
+                <span className="text-on-surface font-semibold">FOUNDRY</span>
                 <span>/</span>
                 <Link href="/dashboard" className="hover:text-primary transition-colors">
-                  COMPANIES
+                  OPPORTUNITIES
                 </Link>
                 <span>/</span>
-                <span className="text-primary font-bold">VALIDATION_GATE</span>
-                <span className="text-secondary-fixed-dim">·</span>
-                <span className="px-1.5 py-0.5 bg-surface border border-[#111111] text-on-surface font-semibold">
-                  ARCHIVE #8812
-                </span>
-                <span className="text-secondary-fixed-dim">·</span>
-                <span className="text-primary font-bold">SPEC_ID: #PW-SHPFY-94812</span>
+                <span className="text-primary font-bold">FOUNDER_VALIDATION</span>
               </div>
               <div className="flex items-center gap-space-sm">
                 <span className="px-2 py-0.5 border border-[#111111] bg-surface text-on-surface font-semibold uppercase">
-                  SHOPIFY ECOSYSTEM
-                </span>
-                <span className="px-2 py-0.5 border border-[#111111] bg-surface text-on-surface font-semibold uppercase">
-                  AUTOMATION &amp; MARGIN PROTECTION
+                  MICRO-SAAS
                 </span>
                 <span className="px-2 py-0.5 border border-primary text-primary bg-[#fff4ee] font-bold uppercase flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  VALIDATED 2 MIN AGO
+                  SCOUTED SIGNALS ACTIVE
                 </span>
               </div>
             </div>
 
-            {/* CRITICAL CORPUS DEFICIT BANNER (Mode: Deficit) */}
-            {mode === "deficit" && (
-              <div className="mx-space-lg md:mx-space-xl mt-space-md p-space-md bg-[#FFF7ED] border-[1.5px] border-[#D97706] shadow-[3px_3px_0px_0px_#D97706] relative">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
-                  <div className="flex items-start gap-space-md">
-                    <div className="w-9 h-9 shrink-0 bg-[#D97706] text-white flex items-center justify-center font-mono font-bold text-[18px]">
-                      !
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 font-mono">
-                        <span className="text-label-md font-bold uppercase tracking-wider text-[#92400E]">
-                          CRITICAL CORPUS DEFICIT
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-[#FEF3C7] border border-[#D97706] text-label-sm font-bold text-[#B45309]">
-                          SAMPLE_SIZE: N=4
-                        </span>
-                      </div>
-                      <p className="font-headline-sm text-headline-sm text-[#78350F] leading-snug font-serif">
-                        Limited evidence found in the wild. Model confidence: Low (32%).
-                      </p>
-                      <p className="font-label-sm text-label-sm text-[#92400E] max-w-4xl leading-relaxed mt-0.5 font-mono">
-                        Ember scanned 420+ sources across Reddit, Hacker News, and Shopify App Store but located fewer
-                        than 4 verified unprompted customer discussions in the trailing 90 days.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex md:flex-col items-end gap-2 shrink-0 font-mono">
-                    <button
-                      onClick={handleExpandCrawl}
-                      disabled={expandedCrawlActive}
-                      className="px-3 py-2 bg-[#111111] text-[#ffffff] text-label-sm uppercase tracking-wider border border-[#111111] shadow-[2px_2px_0px_0px_#D97706] hover:bg-primary transition-all flex items-center gap-1.5 cursor-pointer"
-                      type="button"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">travel_explore</span>
-                      <span>{expandedCrawlActive ? "CRAWLING ARCHIVES..." : "EXPAND CRAWL (+1 CREDIT)"}</span>
-                    </button>
-                    <span className="text-[9px] text-[#92400E] tracking-tight">DEPTH: L3_SUBREDDIT_ARCHIVE</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* HERO HEADER DOSSIER TITLE & VERDICT STAMP */}
+            {/* HERO HEADER DOSSIER TITLE & FOUNDER BADGE */}
             <div className="w-full bg-surface border-b border-[#111111] px-space-lg md:px-space-xl py-space-xl">
               <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-space-lg">
                 <div className="flex flex-col gap-space-xs max-w-3xl">
                   <div className="flex items-center gap-2 font-mono">
                     <span className="text-label-sm uppercase tracking-widest text-primary font-bold">
-                      DISCOVERY DOSSIER // SYN-PRW-09
+                      SCOUTED OPPORTUNITY DOSSIER
                     </span>
                     <span className="h-px w-8 bg-[#111111]" />
                     <span className="text-label-sm uppercase tracking-wider text-secondary">
-                      CLASSIFIED LEVEL-2 REPO CANDIDATE
+                      READY FOR FOUNDER EVALUATION
                     </span>
                   </div>
                   <h1 className="font-display text-4xl md:text-5xl font-bold font-serif text-on-surface tracking-tight leading-none mt-1">
@@ -276,56 +233,19 @@ function ValidationGateContent() {
                   </p>
                 </div>
 
-                {/* Verdict Stamp Card */}
+                {/* Founder Validation Stamp */}
                 <div className="flex flex-col sm:flex-row md:flex-col items-start sm:items-center md:items-end gap-space-xs shrink-0 font-mono">
-                  <div
-                    className={`px-space-md py-2 border-2 border-[#111111] shadow-[3px_3px_0px_0px_#111111] flex items-center gap-2 select-none ${
-                      mode === "go"
-                        ? "bg-[#15803D] text-[#ffffff]"
-                        : mode === "changes"
-                        ? "bg-[#ffdbce] text-[#111111]"
-                        : mode === "deficit"
-                        ? "bg-[#FEF3C7] text-[#92400E] border-[#D97706]"
-                        : "bg-surface-container-lowest border-2 border-error text-error shadow-[4px_4px_0px_0px_#ba1a1a]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {mode === "go"
-                        ? "verified"
-                        : mode === "changes"
-                        ? "auto_fix_high"
-                        : mode === "deficit"
-                        ? "warning"
-                        : "cancel"}
+                  <div className="px-space-md py-2 border-2 border-[#111111] bg-[#111111] text-[#ffffff] shadow-[3px_3px_0px_0px_#111111] flex items-center gap-2 select-none">
+                    <span className="material-symbols-outlined text-[18px] text-primary">
+                      verified_user
                     </span>
                     <span className="text-label-md uppercase font-bold tracking-widest">
-                      {verdictLabel}
+                      AWAITING FOUNDER DECISION
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-label-sm">
-                    <span className="text-secondary uppercase">EVALUATION METRIC:</span>
-                    <span className="px-2 py-0.5 bg-surface-container-highest border border-[#111111] font-bold text-on-surface tracking-wider">
-                      COMPOSITE: {compositeScore} / 100
-                    </span>
-                    <span
-                      className={`font-bold ${
-                        mode === "go"
-                          ? "text-[#15803D]"
-                          : mode === "changes"
-                          ? "text-[#D97706]"
-                          : mode === "deficit"
-                          ? "text-[#B45309]"
-                          : "text-error"
-                      }`}
-                    >
-                      {mode === "go"
-                        ? "▲ CLASS-A"
-                        : mode === "changes"
-                        ? "▲ CLASS-B+"
-                        : mode === "deficit"
-                        ? "CLASS-C"
-                        : "▼ CLASS-D"}
-                    </span>
+                    <span className="text-secondary font-semibold">VALIDATION:</span>
+                    <span className="font-bold text-[#15803D]">HUMAN CONTROLLED</span>
                   </div>
                 </div>
               </div>
@@ -1025,281 +945,86 @@ function ValidationGateContent() {
                   </section>
                 </div>
 
-                {/* RIGHT COLUMN: STICKY SCORECARD MATRIX & EMBER ADVISORY (5 cols) */}
+                {/* RIGHT COLUMN: FOUNDER DECISION CONSOLE (5 cols) */}
                 <div className="lg:col-span-5 flex flex-col gap-space-lg lg:sticky lg:top-20 font-mono">
-                  {/* Scorecard Audit Matrix Card */}
+                  {/* Founder Validation Console Card */}
                   <div className="bg-surface-container-lowest border-2 border-[#111111] p-space-lg shadow-[4px_4px_0px_0px_#111111]">
                     <div className="flex items-center justify-between border-b-2 border-[#111111] pb-space-sm mb-space-md">
                       <div>
                         <span className="text-label-sm text-primary font-bold block uppercase tracking-wider">
-                          SCORECARD // AUDIT MATRIX
+                          VALIDATION GATE // FOUNDER CHOICE
                         </span>
                         <h3 className="font-headline-sm text-lg font-bold text-on-surface font-serif">
-                          HEURISTIC EVALUATION
+                          DECISION CONSOLE
                         </h3>
                       </div>
                       <div className="text-right">
-                        <span className="text-label-lg text-xl font-bold text-on-surface">{compositeScore}%</span>
-                        <span
-                          className={`text-label-sm block font-bold ${
-                            mode === "go"
-                              ? "text-[#15803D]"
-                              : mode === "changes"
-                              ? "text-[#D97706]"
-                              : mode === "deficit"
-                              ? "text-[#B45309]"
-                              : "text-error"
-                          }`}
-                        >
-                          {mode === "go"
-                            ? "HIGH VIABILITY"
-                            : mode === "changes"
-                            ? "CONDITIONAL PASS"
-                            : mode === "deficit"
-                            ? "LOW CONFIDENCE"
-                            : "FATAL DEFICIT"}
+                        <span className="text-label-sm bg-[#15803D] text-white px-2.5 py-1 font-bold uppercase">
+                          HUMAN CHOICE
                         </span>
                       </div>
                     </div>
 
-                    {/* Criteria Rows */}
-                    <div className="flex flex-col divide-y divide-surface-variant text-label-sm">
-                      {/* 1. Demand */}
-                      <div className="py-space-sm flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold uppercase text-on-surface">1. MARKET DEMAND</span>
-                          <div className="flex items-center gap-1.5">
-                            {mode === "deficit" ? (
-                              <span className="text-[#D97706] font-bold">NOT ENOUGH DATA</span>
-                            ) : (
-                              <>
-                                <div className="flex gap-0.5">
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className={`w-3.5 h-2 ${mode === "nogo" ? "bg-surface-variant" : "bg-[#111111]"}`} />
-                                </div>
-                                <span className="font-bold text-on-surface">
-                                  {mode === "nogo" ? "2/5" : "5/5"}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="font-serif text-xs text-secondary">
-                          {mode === "deficit"
-                            ? "Search velocity too low for statistically valid signal."
-                            : mode === "nogo"
-                            ? "68% of test cohorts churn within 60 days before realizing ROI."
-                            : "28 verified complaint threads in 60d; high willingness-to-pay ($89/mo)."}
-                        </p>
+                    {/* Architectural & Market Metadata */}
+                    <div className="flex flex-col gap-3 text-label-sm mb-6">
+                      <div className="p-3 bg-surface-container border border-[#111111]">
+                        <span className="text-secondary block text-[11px] uppercase">PRODUCT CANDIDATE:</span>
+                        <span className="font-bold text-base text-on-surface font-serif">{spec.name}</span>
+                        <p className="text-xs text-secondary mt-1 font-serif">{spec.thesis}</p>
                       </div>
 
-                      {/* 2. Competition */}
-                      <div className="py-space-sm flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold uppercase text-on-surface">2. COMPETITION VACANCY</span>
-                          <div className="flex items-center gap-1.5">
-                            {mode === "deficit" ? (
-                              <span className="text-[#D97706] font-bold">NOT ENOUGH DATA</span>
-                            ) : (
-                              <>
-                                <div className="flex gap-0.5">
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className={`w-3.5 h-2 ${mode === "nogo" ? "bg-surface-variant" : "bg-[#111111]"}`} />
-                                  <div className="w-3.5 h-2 bg-surface-variant border border-[#111111]/30" />
-                                </div>
-                                <span className="font-bold text-on-surface">
-                                  {mode === "nogo" ? "1/5" : "4/5"}
-                                </span>
-                              </>
-                            )}
-                          </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="p-2.5 bg-surface border border-surface-variant">
+                          <span className="text-secondary block uppercase">TARGET AUDIENCE:</span>
+                          <span className="font-bold text-on-surface line-clamp-2">{spec.targetAudience}</span>
                         </div>
-                        <p className="font-serif text-xs text-secondary">
-                          {mode === "nogo"
-                            ? "Red ocean: 42 entrenched incumbents with >500 reviews."
-                            : "Zero dedicated supplier invoice cost-auditors live in Shopify ecosystem."}
-                        </p>
+                        <div className="p-2.5 bg-surface border border-surface-variant">
+                          <span className="text-secondary block uppercase">PRICING MODEL:</span>
+                          <span className="font-bold text-on-surface">{spec.pricing}</span>
+                        </div>
                       </div>
 
-                      {/* 3. Differentiation & Moat */}
-                      <div
-                        className={`py-space-sm flex flex-col gap-1 ${
-                          mode === "changes"
-                            ? "p-2.5 bg-[#fff7ed] border-2 border-primary shadow-[2px_2px_0px_0px_#a23a00]"
-                            : ""
-                        }`}
+                      <div className="p-2.5 bg-[#FAF8F5] border border-[#111111] flex items-center justify-between">
+                        <div>
+                          <span className="text-secondary block text-[10px] uppercase font-bold">TECH STACK ARCHITECTURE</span>
+                          <span className="font-bold text-on-surface text-xs">Next.js 15 · PostgreSQL · Tailwind CSS</span>
+                        </div>
+                        <span className="material-symbols-outlined text-[20px] text-primary">code</span>
+                      </div>
+
+                      <div className="p-2.5 bg-[#F0FDF4] border border-[#15803D] text-[#15803D] text-xs">
+                        <span className="font-bold block uppercase mb-0.5">AUTONOMOUS BUILD SWARM READY</span>
+                        <span>8 agents standing by: Architect, UI, Backend, Integrator, QA, Security, Deployer.</span>
+                      </div>
+                    </div>
+
+                    {/* Direct Founder Validation Action Buttons */}
+                    <div className="flex flex-col gap-2.5 pt-2 border-t border-[#111111]">
+                      <button
+                        onClick={() => setBuildModalOpen(true)}
+                        className="w-full h-12 bg-[#111111] text-white font-mono text-label-md uppercase font-bold tracking-wider hover:bg-primary hover:shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[2px_2px_0px_0px_#111111]"
+                        type="button"
                       >
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={`font-bold uppercase ${
-                              mode === "changes" ? "text-on-primary-fixed" : "text-on-surface"
-                            }`}
-                          >
-                            3. DIFFERENTIATION &amp; MOAT
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {mode === "deficit" ? (
-                              <span className="text-[#D97706] font-bold">NOT ENOUGH DATA</span>
-                            ) : (
-                              <>
-                                <div className="flex gap-0.5">
-                                  <div className={`w-3.5 h-2 ${mode === "changes" ? "bg-primary" : "bg-[#111111]"}`} />
-                                  <div className={`w-3.5 h-2 ${mode === "changes" ? "bg-primary" : "bg-[#111111]"}`} />
-                                  <div className={`w-3.5 h-2 ${mode === "changes" ? "bg-primary" : "bg-[#111111]"}`} />
-                                  <div
-                                    className={`w-3.5 h-2 ${
-                                      mode === "changes" || mode === "nogo"
-                                        ? "bg-surface-variant border border-primary"
-                                        : "bg-[#111111]"
-                                    }`}
-                                  />
-                                  <div className="w-3.5 h-2 bg-surface-variant border border-[#111111]/30" />
-                                </div>
-                                <span
-                                  className={`font-bold ${
-                                    mode === "changes" ? "text-primary" : "text-on-surface"
-                                  }`}
-                                >
-                                  {mode === "changes" ? "3/5" : mode === "nogo" ? "2/5" : "4/5"}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="font-serif text-xs text-secondary">
-                          {mode === "changes"
-                            ? "Vulnerability: Moat is fragile without order volume filter. Low-GMV churn dilutes retention."
-                            : mode === "nogo"
-                            ? "Shopify Editions introduced draft variant bulk cost editing natively."
-                            : "Proprietary CSV/PDF parser linked with instant margin guardrail webhooks."}
-                        </p>
-                      </div>
+                        <span className="material-symbols-outlined text-[18px]">rocket_launch</span>
+                        <span>VALIDATE &amp; START BUILD</span>
+                      </button>
 
-                      {/* 4. Monetization */}
-                      <div className="py-space-sm flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold uppercase text-on-surface">4. DIRECT MONETIZATION</span>
-                          <div className="flex items-center gap-1.5">
-                            {mode === "deficit" ? (
-                              <span className="text-[#D97706] font-bold">NOT ENOUGH DATA</span>
-                            ) : (
-                              <>
-                                <div className="flex gap-0.5">
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className="w-3.5 h-2 bg-[#111111]" />
-                                  <div className={`w-3.5 h-2 ${mode === "nogo" ? "bg-surface-variant" : "bg-[#111111]"}`} />
-                                  <div className={`w-3.5 h-2 ${mode === "nogo" ? "bg-surface-variant" : "bg-[#111111]"}`} />
-                                </div>
-                                <span className="font-bold text-on-surface">
-                                  {mode === "nogo" ? "3/5" : "5/5"}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="font-serif text-xs text-secondary">
-                          {spec.pricing}
-                        </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setTweakModalOpen(true)}
+                          className="h-10 bg-surface text-on-surface border border-[#111111] hover:bg-surface-container font-mono text-label-sm uppercase font-bold cursor-pointer transition-colors"
+                          type="button"
+                        >
+                          TWEAK SPEC
+                        </button>
+                        <button
+                          onClick={() => router.push("/dashboard/scout")}
+                          className="h-10 bg-surface text-on-surface border border-[#111111] hover:bg-surface-container font-mono text-label-sm uppercase font-bold cursor-pointer transition-colors"
+                          type="button"
+                        >
+                          ANOTHER IDEA
+                        </button>
                       </div>
-
-                      {/* 5. Buildability */}
-                      <div className="py-space-sm flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold uppercase text-on-surface">5. TECHNICAL BUILDABILITY</span>
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex gap-0.5">
-                              <div className="w-3.5 h-2 bg-[#15803D]" />
-                              <div className="w-3.5 h-2 bg-[#15803D]" />
-                              <div className="w-3.5 h-2 bg-[#15803D]" />
-                              <div className="w-3.5 h-2 bg-[#15803D]" />
-                              <div className={`w-3.5 h-2 ${mode === "deficit" ? "bg-surface-variant" : "bg-[#15803D]"}`} />
-                            </div>
-                            <span className="font-bold text-on-surface">
-                              {mode === "deficit" ? "3/5" : mode === "nogo" ? "4/5" : "5/5"}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="font-serif text-xs text-secondary">
-                          Shopify Admin GraphQL + AWS Textract OCR pipeline is 100% turnkey.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Estimated Build Protocol Card */}
-                  <div className="bg-surface border-2 border-[#111111] p-space-md shadow-[3px_3px_0px_0px_#111111] flex flex-col gap-space-sm">
-                    <div className="flex items-center justify-between border-b border-[#111111] pb-space-xs">
-                      <span className="text-label-sm uppercase font-bold text-secondary">
-                        ESTIMATED BUILD // COMPILE PROTOCOL
-                      </span>
-                      <span
-                        className={`text-label-sm px-1.5 py-0.5 font-bold ${
-                          mode === "nogo" ? "bg-error text-white" : "bg-primary text-on-primary"
-                        }`}
-                      >
-                        {mode === "nogo" ? "HALTED" : "READY"}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-serif text-[28px] font-bold text-on-surface tracking-tight">
-                        ~14 MIN
-                      </span>
-                      <span className="text-label-lg font-bold text-primary">40 CREDITS ALLOCATED</span>
-                    </div>
-                    <div className="flex flex-col gap-1 text-label-sm pt-space-xs border-t border-surface-variant text-secondary">
-                      <div className="flex justify-between py-0.5">
-                        <span>3 screens compilation</span>
-                        <span className="font-bold text-on-surface">~4 MIN</span>
-                      </div>
-                      <div className="flex justify-between py-0.5">
-                        <span>Next.js API route orchestration</span>
-                        <span className="font-bold text-on-surface">~5 MIN</span>
-                      </div>
-                      <div className="flex justify-between py-0.5">
-                        <span>Supabase + Prisma schema migration</span>
-                        <span className="font-bold text-on-surface">~3 MIN</span>
-                      </div>
-                      <div className="flex justify-between py-0.5">
-                        <span>Shopify OAuth setup &amp; test harness</span>
-                        <span className="font-bold text-on-surface">~2 MIN</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Ember Supervisor Mascot Callout */}
-                  <div className="bg-surface-container-high border border-[#111111] p-space-md shadow-[2px_2px_0px_0px_#111111] flex items-start gap-space-sm">
-                    <div className="w-10 h-10 border-2 border-[#111111] bg-surface-container-lowest shrink-0 relative flex flex-col items-center justify-center p-1">
-                      <div className="flex items-center justify-between w-full px-1 mb-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#111111]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#111111]" />
-                      </div>
-                      <div className="w-4 h-0.5 bg-[#111111]" />
-                      <span
-                        className={`w-1.5 h-1.5 absolute -top-1 -right-1 border border-[#111111] ${
-                          mode === "nogo" ? "bg-error" : "bg-primary"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex flex-col text-label-sm leading-relaxed">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="font-bold text-on-surface uppercase">Ember // Kernel Supervisor</span>
-                        <span className="text-secondary text-[10px]">• SYSTEM ACTIVE</span>
-                      </div>
-                      <p className="text-on-surface-variant font-mono uppercase text-[10px]">
-                        {mode === "go"
-                          ? "“SPEC COMPLETENESS INDEX: 94.2%. AUTO-CONVERSION TO PRISMA SCHEMA & NEXT.JS REPO IS READY ON APPROVAL SIGNAL.”"
-                          : mode === "changes"
-                          ? "“APPLYING 'NARROW TO >100 ORDERS/DAY' ELEVATES COMPOSITE VIABILITY FROM 74 TO 83 (CLASS-A GO).”"
-                          : mode === "deficit"
-                          ? "“COMPILING CODE ON LOW-CONFIDENCE EVIDENCE CARRIES ELEVATED MARKET PIVOT RISK. RECOMMEND EXPANDED CRAWL.”"
-                          : "“PROCEEDING WITH THIS ARCHITECTURE BURNS 40 CREDITS WITH PROJECTED 78% MORTALITY RATE. RECOMMEND PIVOT.”"}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -1370,39 +1095,15 @@ function ValidationGateContent() {
                 Tweak Spec
               </button>
 
-              {/* Primary High-Impact Approval Button */}
-              {mode !== "nogo" ? (
-                <button
-                  onClick={() => router.push("/dashboard/build")}
-                  className={`h-10 px-space-lg text-[#ffffff] text-label-md uppercase font-bold tracking-widest border-2 border-[#111111] shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center gap-space-xs cursor-pointer ${
-                    mode === "go"
-                      ? "bg-[#111111] hover:bg-primary"
-                      : "bg-primary hover:bg-primary-container hover:text-on-primary-container"
-                  }`}
-                  type="button"
-                >
-                  <span>
-                    {mode === "go"
-                      ? "Approve & Start Build"
-                      : "Approve with Changes & Build"}
-                  </span>
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </button>
-              ) : (
-                <div className="flex flex-col items-end">
-                  <button
-                    onClick={() => setBuildModalOpen(true)}
-                    className="h-9 px-space-md bg-surface text-error text-label-sm uppercase font-bold tracking-wider border-2 border-error hover:bg-error-container/30 transition-colors shadow-[2px_2px_0px_0px_#ba1a1a] flex items-center gap-1.5 cursor-pointer"
-                    type="button"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">warning</span>
-                    <span>APPROVE ANYWAY</span>
-                  </button>
-                  <span className="text-[9px] uppercase text-error font-bold mt-0.5 tracking-tighter">
-                    * We do not recommend this
-                  </span>
-                </div>
-              )}
+              {/* Primary Founder Build Approval Button */}
+              <button
+                onClick={() => setBuildModalOpen(true)}
+                className="h-10 px-space-lg text-[#ffffff] bg-[#111111] hover:bg-primary text-label-md uppercase font-bold tracking-widest border-2 border-[#111111] shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center gap-space-xs cursor-pointer"
+                type="button"
+              >
+                <span>VALIDATE &amp; START BUILD</span>
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
 
               {/* Syndicate Credit Balance Pill */}
               <div className="hidden lg:flex items-center gap-1.5 text-label-sm border border-[#111111] bg-surface px-2 py-1 shrink-0">

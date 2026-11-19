@@ -9,6 +9,9 @@ import { CommandPalette } from "@/components/dashboard/command-palette";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { SurpriseModal } from "@/components/studio/surprise-modal";
 import { BuildModal } from "@/components/studio/build-modal";
+import { StudioApiClient } from "@/lib/api-client";
+
+const api = new StudioApiClient();
 
 interface FeedItem {
   id: string;
@@ -24,63 +27,33 @@ interface FeedItem {
 const INITIAL_FEED: FeedItem[] = [
   {
     id: "feed-1",
-    source: "r/SaaS",
-    sourceColor: "bg-[#FFF3E0] text-primary border-primary",
-    timeAgo: "12s ago",
-    quote: "“Every single time tracking tool is bloated with CRM features. I just want a stopwatch that exports to Stripe billing.”",
-    score: 184,
-    sentiment: "SENTIMENT: FRUSTRATED",
-    tag: "BILLING_LEAK",
-  },
-  {
-    id: "feed-2",
-    source: "Ask HN",
+    source: "Hacker News",
     sourceColor: "bg-[#FEF3C7] text-[#B45309] border-[#B45309]",
-    timeAgo: "38s ago",
-    quote: "“Why isn't there a headless webhook tester with replay that doesn't cost $200/mo? We're maintaining custom ngrok scripts.”",
-    score: 242,
+    timeAgo: "12s ago",
+    quote: "“We built a webhook dead-letter queue inspect-and-retry tool. Every time Stripe or Shopify sends webhooks that fail, our team had to SSH in.”",
+    score: 184,
     sentiment: "WILLINGNESS_TO_PAY: HIGH",
     tag: "DEV_INFRA",
   },
   {
+    id: "feed-2",
+    source: "GitHub",
+    sourceColor: "bg-[#E0F2FE] text-[#0369A1] border-[#0369A1]",
+    timeAgo: "38s ago",
+    quote: "“Feature Request: Automated schema drift detection & alert for Postgres. Deploying microservices across environments breaks queries silently.”",
+    score: 242,
+    sentiment: "DEV_PAIN: HIGH",
+    tag: "POSTGRES_CLI",
+  },
+  {
     id: "feed-3",
-    source: "G2 / Zapier",
-    sourceColor: "bg-[#E8F5E9] text-[#15803D] border-[#15803D]",
+    source: "r/SaaS",
+    sourceColor: "bg-[#FFF3E0] text-primary border-primary",
     timeAgo: "1m ago",
-    quote: "“We spend $800/mo on Zapier just to sync 2 Postgres tables every 5 minutes because sync keeps breaking silently.”",
-    score: 310,
-    sentiment: "PAIN: HIGH",
-    tag: "DATA_SYNC",
-  },
-  {
-    id: "feed-4",
-    source: "ProductHunt",
-    sourceColor: "bg-surface-container text-on-surface border-[#111111]",
-    timeAgo: "2m ago",
-    quote: "“Looking for an automated changelog generator that actually reads commit diffs and writes release notes for human customers.”",
-    score: 95,
-    sentiment: "OPPORTUNITY: DEV_TOOLS",
-    tag: "CHANGELOG_AI",
-  },
-  {
-    id: "feed-5",
-    source: "r/sysadmin",
-    sourceColor: "bg-[#FFF3E0] text-primary border-primary",
-    timeAgo: "3m ago",
-    quote: "“Certbot renewal failed silently again on AWS edge lambdas. Need alert before cert dies with automated zero-downtime DNS-01.”",
-    score: 96,
+    quote: "“Every single time tracking tool is bloated with CRM features. I just want a stopwatch that exports to Stripe billing.”",
+    score: 184,
     sentiment: "SENTIMENT: FRUSTRATED",
-    tag: "EDGE_SECURITY",
-  },
-  {
-    id: "feed-6",
-    source: "r/startups",
-    sourceColor: "bg-[#FFF3E0] text-primary border-primary",
-    timeAgo: "4m ago",
-    quote: "“We are manually copying PDF bills of lading into Excel every morning because freight OCR is terrible.”",
-    score: 215,
-    sentiment: "UNMET_NEED: HIGH",
-    tag: "DOCUMENT_AI",
+    tag: "BILLING_LEAK",
   },
 ];
 
@@ -101,6 +74,58 @@ export default function ScoutPage() {
   const [signalTotal, setSignalTotal] = useState(1420);
 
   // Periodic signal ingestion counter increment when streaming is active
+  useEffect(() => {
+    async function loadLiveRecon() {
+      try {
+        const res = await api.getPainPoints();
+        if (res.painPoints && res.painPoints.length > 0) {
+          const liveMapped: FeedItem[] = res.painPoints.map((p: any, idx: number) => {
+            const domainLower = (p.domain || "").toLowerCase();
+            const isHN = domainLower.includes("hacker");
+            const isGH = domainLower.includes("github");
+            const isReddit = domainLower.includes("r/");
+
+            let source = p.domain || "Community";
+            let sourceColor = "bg-surface-container text-on-surface border-[#111111]";
+            let sentiment = "WILLINGNESS_TO_PAY: HIGH";
+            let tag = "SAAS_WEDGE";
+
+            if (isHN) {
+              source = "Hacker News";
+              sourceColor = "bg-[#FEF3C7] text-[#B45309] border-[#B45309]";
+              sentiment = "FOUNDER_NEED: ACUTE";
+              tag = "ASK_HN";
+            } else if (isGH) {
+              source = p.domain;
+              sourceColor = "bg-[#E0F2FE] text-[#0369A1] border-[#0369A1]";
+              sentiment = "DEV_PAIN: HIGH";
+              tag = "GITHUB_ISSUE";
+            } else if (isReddit) {
+              source = p.domain;
+              sourceColor = "bg-[#FFF3E0] text-primary border-primary";
+              sentiment = "SENTIMENT: FRUSTRATED";
+              tag = "REDDIT_SAAS";
+            }
+
+            return {
+              id: p.id || `live-feed-${idx}`,
+              source,
+              sourceColor,
+              timeAgo: `${(idx + 1) * 12}s ago`,
+              quote: `“${p.quote || p.problem}”`,
+              score: (p.frequency_score || 5) * 25 + Math.floor(Math.random() * 20),
+              sentiment,
+              tag,
+            };
+          });
+          setFeed(liveMapped);
+          setSignalTotal(res.total * 42 + 210);
+        }
+      } catch {}
+    }
+    loadLiveRecon();
+  }, []);
+
   useEffect(() => {
     if (!isStreaming) return;
     const interval = setInterval(() => {
@@ -479,11 +504,19 @@ export default function ScoutPage() {
               </button>
               {/* View Candidates / Proceed to Validation Gate */}
               <button
-                onClick={() => router.push("/dashboard/validation")}
+                onClick={async () => {
+                  try {
+                    const res = await api.surpriseMe();
+                    if (res.selectedIdea && typeof window !== "undefined") {
+                      sessionStorage.setItem("active_scouted_idea", JSON.stringify(res.selectedIdea));
+                    }
+                  } catch {}
+                  router.push("/dashboard/validation");
+                }}
                 className="px-space-md h-9 bg-[#111111] text-[#ffffff] border-[1.5px] border-[#111111] font-label-md text-label-md uppercase tracking-wider font-bold rounded-DEFAULT hover:bg-primary hover:border-primary hover:shadow-[2px_2px_0px_0px_#111111] transition-all flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_#111111]"
                 type="button"
               >
-                <span>PROCEED TO VALIDATION (88)</span>
+                <span>PROCEED TO VALIDATION</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>

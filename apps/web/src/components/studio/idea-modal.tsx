@@ -230,53 +230,28 @@ export function IdeaModal({ isOpen, onClose, onApproveBuild }: IdeaModalProps) {
           </div>
         )}
 
-        {/* STAGE 4: RESULT SCORECARD */}
+        {/* STAGE 4: RESULT SPECIFICATION FOR FOUNDER VALIDATION */}
         {stage === "result" && validationResult && (
           <div className="space-y-5">
-            {/* Verdict Banner */}
+            {/* Founder Review Banner */}
             <div className="flex items-center justify-between p-3 bg-[#EDEDEA] border border-[#111111]">
               <div>
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5F5E5E] block">
-                  SYNTHESIS VERDICT
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5F5E5E] block font-bold">
+                  FOUNDER REVIEW // SYNTHESIZED SPECIFICATION
                 </span>
                 <span className="font-headline text-[22px] font-bold text-[#111111]">
                   {validationResult.title}
                 </span>
               </div>
-              <span
-                className={`font-mono text-[12px] uppercase font-bold tracking-[0.08em] px-3 py-1 border border-[#111111] ${
-                  (typeof validationResult.verdict === "object" ? validationResult.verdict?.status : validationResult.verdict) === "GO"
-                    ? "bg-[#15803D] text-white"
-                    : (typeof validationResult.verdict === "object" ? validationResult.verdict?.status : validationResult.verdict) === "GO_WITH_CHANGES"
-                    ? "bg-[#D97706] text-white"
-                    : "bg-[#DC2626] text-white"
-                }`}
-              >
-                {typeof validationResult.verdict === "object" ? validationResult.verdict?.status || "GO" : validationResult.verdict || "GO"}
+              <span className="font-mono text-[11px] uppercase font-bold tracking-[0.08em] px-3 py-1 bg-[#111111] text-white border border-[#111111]">
+                FOUNDER CHOICE
               </span>
             </div>
 
-            {/* Scorecard Breakdown */}
-            <div>
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5F5E5E] block mb-2 font-bold">
-                EVIDENCE SCORECARD (1 TO 5 SCALE)
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-                {Object.entries(validationResult.scorecard || {}).map(([key, val]: any) => {
-                  if (key === "overallScore" || key === "total") return null;
-                  const scoreDisplay = typeof val === "object" ? val?.score || 4.2 : val;
-                  return (
-                    <div key={key} className="p-2 border border-[#111111] bg-[#FAFAF8]">
-                      <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#5F5E5E] block">
-                        {key}
-                      </span>
-                      <span className="font-headline text-[18px] font-bold text-[#111111]">
-                        {scoreDisplay}/5
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Founder Gate Banner */}
+            <div className="p-2.5 bg-[#EDEDEA] border border-[#111111] flex items-center justify-between font-mono text-[11px]">
+              <span className="font-bold text-[#111111]">FOUNDER VALIDATION:</span>
+              <span className="text-[#15803D] font-bold uppercase">Human Evaluation Required · Review Specifications Below</span>
             </div>
 
             {/* Hypothesis & Competitors */}

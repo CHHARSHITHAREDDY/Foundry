@@ -19,25 +19,38 @@ export class LlmClient {
   private baseUrl: string;
   private apiKey: string;
   private geminiKey?: string;
+  private groqKey?: string;
+  private openAiKey?: string;
 
   constructor() {
-    this.baseUrl = process.env.LITELLM_URL || process.env.INFERENCE_BASE_URL || "http://localhost:4000";
-    this.apiKey = process.env.LITELLM_MASTER_KEY || process.env.INFERENCE_API_KEY || "sk-local-dev";
     this.geminiKey = process.env.GEMINI_API_KEY;
+    this.groqKey = process.env.GROQ_API_KEY;
+    this.openAiKey = process.env.OPENAI_API_KEY;
+
+    if (this.groqKey && !process.env.LITELLM_URL) {
+      this.baseUrl = "https://api.groq.com/openai";
+      this.apiKey = this.groqKey;
+    } else if (this.openAiKey && !process.env.LITELLM_URL) {
+      this.baseUrl = "https://api.openai.com";
+      this.apiKey = this.openAiKey;
+    } else {
+      this.baseUrl = process.env.LITELLM_URL || process.env.INFERENCE_BASE_URL || "http://localhost:4000";
+      this.apiKey = process.env.LITELLM_MASTER_KEY || process.env.INFERENCE_API_KEY || "sk-local-dev";
+    }
   }
 
   async complete(options: CompletionOptions): Promise<string> {
-    // If Gemini API Key is directly configured, we can call Google Gemini API
+    // 1. Direct Google Gemini API
     if (this.geminiKey) {
       return this.callGemini(options);
     }
 
-    // Default: Call LiteLLM / OpenAI-compatible endpoint
+    // 2. Default: Call OpenAI-compatible endpoint (LiteLLM, Groq, OpenAI, Ollama)
     return this.callOpenAiCompatible(options);
   }
 
   async completeStructured<T>(options: CompletionOptions, schema: z.ZodType<T>): Promise<T> {
-    const systemPrompt = `You MUST return your response as a valid, well-formed JSON object or array conforming to the requested schema. Do NOT include any explanations, greetings, or prose outside the JSON.`;
+    const systemPrompt = `You MUST return your response as a valid, well-formed JSON object or array conforming to the requested schema. Do NOT include any explanations, greetings, or markdown fences outside the JSON.`;
     const messages = [
       { role: "system" as const, content: systemPrompt },
       ...options.messages,
@@ -57,6 +70,18 @@ export class LlmClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
+    // Resolve model name based on provider
+    let modelName = options.tier as string;
+    if (this.groqKey && this.baseUrl.includes("groq.com")) {
+      modelName = options.tier === "reasoner" || options.tier === "coder"
+        ? "llama-3.3-70b-versatile"
+        : "llama-3.1-8b-instant";
+    } else if (this.openAiKey && this.baseUrl.includes("openai.com")) {
+      modelName = options.tier === "reasoner" || options.tier === "coder"
+        ? "gpt-4o"
+        : "gpt-4o-mini";
+    }
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -65,7 +90,7 @@ export class LlmClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: options.tier,
+          model: modelName,
           messages: options.messages,
           temperature: options.temperature ?? 0.2,
           max_tokens: options.maxTokens ?? 4000,
@@ -92,7 +117,6 @@ export class LlmClient {
   }
 
   private async callGemini(options: CompletionOptions): Promise<string> {
-    // Map tier to appropriate Gemini model
     const model = options.tier === "reasoner" || options.tier === "coder"
       ? "gemini-2.5-pro"
       : "gemini-2.5-flash";
@@ -128,4 +152,3 @@ export class LlmClient {
 
 export const llmClient = new LlmClient();
 export const llmGateway = llmClient;
-

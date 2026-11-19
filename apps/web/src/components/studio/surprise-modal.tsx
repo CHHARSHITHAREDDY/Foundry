@@ -14,31 +14,18 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
   const [isTweaking, setIsTweaking] = useState(false);
   const [tweakedTitle, setTweakedTitle] = useState("");
   const [tweakedProblem, setTweakedProblem] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const getScoreVal = (val: any): number => {
-    if (typeof val === "number") return val;
-    if (val && typeof val === "object" && typeof val.score === "number") return val.score;
-    return 4.2;
-  };
-
-  const getVerdictStatus = (verdict: any): string => {
-    if (!verdict) return "GO";
-    if (typeof verdict === "string") return verdict;
-    if (typeof verdict === "object" && verdict.status) return String(verdict.status);
-    return "GO";
-  };
-
-  const getScorecardTotal = (sc: any): string => {
-    if (!sc) return "4.4";
-    const num = sc.overallScore || sc.total || 4.4;
-    return typeof num === "number" ? num.toFixed(1) : String(num);
-  };
-
   const runSurpriseMe = async () => {
+    setErrorMessage(null);
     setStage("scouting");
     try {
+      // Step visual progression
+      setTimeout(() => setStage("generating"), 600);
+      setTimeout(() => setStage("validating"), 1200);
+
       // Real Fastify backend call via Next.js rewrite
       const res = await fetch("/api/backend/ideas/surprise", {
         method: "POST",
@@ -46,61 +33,19 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
         body: JSON.stringify({}),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setIdeaData(data);
-        setTweakedTitle(data.selectedIdea?.title || "VATSentry");
-        setTweakedProblem(data.selectedIdea?.problem || "");
-        setStage("ready");
-        return;
+      if (!res.ok) {
+        throw new Error(`Failed to generate live idea: HTTP ${res.status}`);
       }
-    } catch {
-      // Fallback simulation if backend offline
-    }
 
-    // Realistic simulation if backend offline
-    setTimeout(() => setStage("generating"), 1200);
-    setTimeout(() => setStage("validating"), 2400);
-    setTimeout(() => {
-      const mock = {
-        selectedIdea: {
-          id: "idea_vat_sentry",
-          title: "VATSentry",
-          tagline: "Automated reverse-charge EU VAT compliance for micro-SaaS founders",
-          problem: "Founders spend 4+ hours every month reconciling reverse-charge VAT invoices from Stripe & Paddle, risking tax penalties.",
-          targetCustomer: "European SaaS founders & solopreneurs billing across EU borders",
-          whyNow: "EU DAC7 enforcement tightened in 2024 with mandatory digital reporting penalties.",
-          competitors: [
-            { name: "Quaderno", pricing: "$49/mo", weaknesses: "Clunky UI, overkill for solopreneurs" },
-            { name: "TaxJar", pricing: "$99/mo", weaknesses: "Focused heavily on US sales tax, not EU VAT" },
-          ],
-          evidence: [
-            { source: "r/SaaS", url: "https://reddit.com/r/SaaS/comments/vat_headaches", quote: "I spend 4 hours every month fixing reverse-charge VAT invoices..." },
-            { source: "Hacker News", url: "https://news.ycombinator.com/item?id=3819201", quote: "EU VAT compliance is the single most frustrating part of running a micro-SaaS." },
-          ],
-          scorecard: {
-            demand: { score: 4.5, reason: "High complaint volume" },
-            competition: { score: 4.0, reason: "Enterprise incumbents" },
-            differentiation: { score: 4.2, reason: "Zero setup friction" },
-            monetization: { score: 4.8, reason: "Direct tax compliance ROI" },
-            buildability: { score: 4.7, reason: "Webhook + PDF generation" },
-            overallScore: 4.4,
-          },
-          verdict: { status: "GO", summary: "High buildability and acute demand" },
-          mvpScope: {
-            screens: ["Dashboard", "Invoices", "Settings"],
-            coreApis: ["/api/stripe/webhook", "/api/vat/validate", "/api/invoices/export"],
-            keyFeatures: ["Stripe webhook listener", "Monthly VAT PDF report generator", "Direct tax authority XML export"],
-            estimatedComplexity: "LOW",
-          },
-        },
-        cachedCandidates: [],
-      };
-      setIdeaData(mock);
-      setTweakedTitle(mock.selectedIdea.title);
-      setTweakedProblem(mock.selectedIdea.problem);
+      const data = await res.json();
+      setIdeaData(data);
+      setTweakedTitle(data.selectedIdea?.title || "Scouted Opportunity");
+      setTweakedProblem(data.selectedIdea?.problem || "");
       setStage("ready");
-    }, 3800);
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Failed to reach backend reconnaissance server. Ensure API is running at http://localhost:3001.");
+      setStage("idle");
+    }
   };
 
   const handleNextCandidate = async () => {
@@ -137,9 +82,6 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
     }
   };
 
-  const currentVerdict = getVerdictStatus(ideaData?.selectedIdea?.verdict);
-  const totalScore = getScorecardTotal(ideaData?.selectedIdea?.scorecard);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/70 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-[#FFFFFF] border-[2px] border-[#111111] shadow-[8px_8px_0px_0px_#111111] p-6 max-h-[90vh] overflow-y-auto">
@@ -169,8 +111,13 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
               Autonomous Trend Scout &amp; Validator
             </h3>
             <p className="font-body text-[16px] text-[#474646] max-w-md mx-auto mb-6 font-serif">
-              Our agent swarm will scour Reddit complaints, Hacker News discussions, and Product Hunt reviews to uncover real unserved market pain points.
+              Our agent swarm will scour Hacker News discussions, GitHub feature requests, and Reddit communities to uncover real unserved market pain points.
             </p>
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-[#FCE8E8] border border-error text-error text-left font-mono text-[12px]">
+                <span className="font-bold">ERROR:</span> {errorMessage}
+              </div>
+            )}
             <button
               onClick={handleStart}
               className="h-12 px-8 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] border border-[#111111] hover:bg-[#F25C05] hover:border-[#F25C05] hover:shadow-[3px_3px_0px_0px_#111111] transition-all cursor-pointer font-bold"
@@ -211,22 +158,19 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
 
         {stage === "ready" && ideaData?.selectedIdea && (
           <div className="space-y-5">
-            {/* Top Badge & Verdict */}
+            {/* Top Badge & Status */}
             <div className="flex items-center justify-between bg-[#EDEDEA] p-3 border border-[#111111]">
               <div>
                 <span className="font-mono text-[10px] text-[#5F5E5E] uppercase block">
-                  RECOMMENDED OPPORTUNITY
+                  SCOUTED OPPORTUNITY // FOR FOUNDER REVIEW
                 </span>
                 <span className="font-headline text-[20px] font-bold text-[#111111] font-serif">
                   {tweakedTitle || ideaData.selectedIdea.title}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="bg-[#15803D] text-white font-mono text-[11px] px-2 py-0.5 font-bold">
-                  VERDICT: {currentVerdict}
-                </span>
-                <span className="bg-white border border-[#111111] font-mono text-[11px] px-2 py-0.5 font-bold">
-                  SCORE: {totalScore}/5.0
+                <span className="bg-[#111111] text-white font-mono text-[11px] px-2.5 py-1 font-bold">
+                  FOUNDER CHOICE
                 </span>
               </div>
             </div>
@@ -302,28 +246,10 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
               </div>
             </div>
 
-            {/* Scorecard breakdown */}
-            <div className="grid grid-cols-5 gap-2 bg-[#EDEDEA] p-3 border border-[#111111] text-center font-mono text-[10px]">
-              <div>
-                <span className="text-[#5F5E5E] block">DEMAND</span>
-                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.demand)}/5</span>
-              </div>
-              <div>
-                <span className="text-[#5F5E5E] block">COMPETITION</span>
-                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.competition)}/5</span>
-              </div>
-              <div>
-                <span className="text-[#5F5E5E] block">DIFFERENTIATION</span>
-                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.differentiation)}/5</span>
-              </div>
-              <div>
-                <span className="text-[#5F5E5E] block">MONETIZATION</span>
-                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.monetization)}/5</span>
-              </div>
-              <div>
-                <span className="text-[#5F5E5E] block">BUILDABILITY</span>
-                <span className="font-bold text-[12px]">{getScoreVal(ideaData.selectedIdea.scorecard?.buildability)}/5</span>
-              </div>
+            {/* Founder Validation Gate */}
+            <div className="bg-[#EDEDEA] p-3 border border-[#111111] flex items-center justify-between font-mono text-[11px]">
+              <span className="text-[#111111] font-bold">FOUNDER EVALUATION:</span>
+              <span className="text-[#15803D] font-bold uppercase">Human Decision Required · You Control What Gets Built</span>
             </div>
 
             {/* Action Buttons */}
@@ -347,7 +273,7 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                 onClick={handleApprove}
                 className="px-6 py-2.5 bg-[#111111] text-white font-mono text-[11px] uppercase tracking-[0.08em] font-bold border border-[#111111] hover:bg-[#F25C05] hover:border-[#F25C05] hover:shadow-[3px_3px_0px_0px_#111111] transition-all flex items-center gap-2 cursor-pointer shadow-[2px_2px_0px_0px_#111111]"
               >
-                <span>APPROVE &amp; SHIP CODE</span>
+                <span>VALIDATE &amp; SHIP CODE</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>

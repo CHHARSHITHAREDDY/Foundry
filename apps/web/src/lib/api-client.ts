@@ -90,6 +90,12 @@ export class StudioApiClient {
     return IdeaBriefSchema.parse(await res.json());
   }
 
+  async getPainPoints(): Promise<{ painPoints: any[]; sourcesScanned: string[]; total: number }> {
+    const res = await fetch(`${this.baseUrl}/api/research/pain-points`);
+    if (!res.ok) return { painPoints: [], sourcesScanned: [], total: 0 };
+    return res.json();
+  }
+
   // --- 2. SPRINT TASKS ---
   async getTasks(filter?: string): Promise<{ tasks: any[]; total: number }> {
     const q = filter && filter !== "ALL" ? `?filter=${encodeURIComponent(filter)}` : "";
