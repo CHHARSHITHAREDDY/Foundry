@@ -17,6 +17,8 @@ export class SearchRouter {
   async search(query: string, limit: number = 5): Promise<SearchItem[]> {
     if (this.tavilyApiKey) {
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500);
         const res = await fetch("https://api.tavily.com/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -25,7 +27,9 @@ export class SearchRouter {
             query,
             max_results: limit,
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
         if (res.ok) {
           const data: any = await res.json();
           return (data.results || []).map((r: any) => ({
@@ -40,7 +44,12 @@ export class SearchRouter {
 
     if (this.searxngUrl) {
       try {
-        const res = await fetch(`${this.searxngUrl}/search?q=${encodeURIComponent(query)}&format=json`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch(`${this.searxngUrl}/search?q=${encodeURIComponent(query)}&format=json`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
         if (res.ok) {
           const data: any = await res.json();
           return (data.results || []).slice(0, limit).map((r: any) => ({
@@ -53,14 +62,7 @@ export class SearchRouter {
       } catch {}
     }
 
-    return [
-      {
-        title: `${query} - Solutions & Alternatives Overview`,
-        url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-        snippet: `Market indicators for ${query}. Several fragmented tools exist with pricing from $19 to $99/mo, leaving opportunities for focused micro-SaaS players.`,
-        source: "engine",
-      },
-    ];
+    return [];
   }
 }
 

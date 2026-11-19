@@ -22,13 +22,16 @@ export class IdeaCacheService {
   getNextCandidate(currentId?: string): IdeaBrief | undefined {
     if (this.candidateQueue.length === 0) return undefined;
 
-    const filtered = currentId
-      ? this.candidateQueue.filter((id) => id !== currentId)
-      : this.candidateQueue;
+    if (!currentId) {
+      const firstId = this.candidateQueue[0];
+      return firstId ? this.cache.get(firstId) : undefined;
+    }
 
-    const nextId = filtered[0] || this.candidateQueue[0];
-    if (!nextId) return undefined;
-    return this.cache.get(nextId);
+    const currentIndex = this.candidateQueue.indexOf(currentId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % this.candidateQueue.length : 0;
+    const nextId = this.candidateQueue[nextIndex];
+
+    return nextId ? this.cache.get(nextId) : undefined;
   }
 
   listIdeas(): IdeaBrief[] {

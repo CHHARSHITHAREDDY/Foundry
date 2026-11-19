@@ -18,23 +18,37 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
 
   if (!isOpen) return null;
 
+  const getApiEndpoint = (path: string) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    return `${baseUrl.replace(/\/$/, "")}${path}`;
+  };
+
   const runSurpriseMe = async () => {
     setErrorMessage(null);
     setStage("scouting");
     try {
-      // Step visual progression
       setTimeout(() => setStage("generating"), 600);
       setTimeout(() => setStage("validating"), 1200);
 
-      // Real Fastify backend call via Next.js rewrite
-      const res = await fetch("/api/backend/ideas/surprise", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
+      let res: Response | null = null;
+      try {
+        // Direct Fastify API call
+        res = await fetch(getApiEndpoint("/api/ideas/surprise"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+      } catch {
+        // Fallback to Next.js proxy rewrite
+        res = await fetch("/api/backend/ideas/surprise", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+      }
 
-      if (!res.ok) {
-        throw new Error(`Failed to generate live idea: HTTP ${res.status}`);
+      if (!res || !res.ok) {
+        throw new Error(`Failed to generate live idea: HTTP ${res?.status || "connection failed"}`);
       }
 
       const data = await res.json();
@@ -51,18 +65,41 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
   const handleNextCandidate = async () => {
     try {
       const currentId = ideaData?.selectedIdea?.id || "";
-      const res = await fetch(`/api/backend/ideas/next-candidate?currentId=${encodeURIComponent(currentId)}`);
-      if (res.ok) {
+      let res: Response | null = null;
+      try {
+        res = await fetch(getApiEndpoint(`/api/ideas/next-candidate?currentId=${encodeURIComponent(currentId)}`));
+      } catch {
+        res = await fetch(`/api/backend/ideas/next-candidate?currentId=${encodeURIComponent(currentId)}`);
+      }
+
+      if (res && res.ok) {
         const nextIdea = await res.json();
         setIdeaData((prev: any) => ({
           ...prev,
           selectedIdea: nextIdea,
         }));
-        setTweakedTitle(nextIdea.title || "VATSentry");
+        setTweakedTitle(nextIdea.title || "Scouted Opportunity");
         setTweakedProblem(nextIdea.problem || "");
         return;
       }
     } catch {}
+
+    // Instant cycling through cachedCandidates array
+    if (ideaData?.cachedCandidates && ideaData.cachedCandidates.length > 1) {
+      const currentId = ideaData.selectedIdea?.id;
+      const currentIndex = ideaData.cachedCandidates.findIndex((c: any) => c.id === currentId);
+      const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % ideaData.cachedCandidates.length : 0;
+      const nextIdea = ideaData.cachedCandidates[nextIndex];
+
+      setIdeaData((prev: any) => ({
+        ...prev,
+        selectedIdea: nextIdea,
+      }));
+      setTweakedTitle(nextIdea.title || "Scouted Opportunity");
+      setTweakedProblem(nextIdea.problem || "");
+      return;
+    }
+
     // Fallback to fresh run if cache exhausted
     runSurpriseMe();
   };
@@ -128,13 +165,12 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
         )}
 
         {(stage === "scouting" || stage === "generating" || stage === "validating") && (
-          <div className="py-10 text-center space-y-6">
+          <div className="py-12 text-center space-y-6">
             <div className="inline-flex items-center gap-3 bg-[#EDEDEA] px-4 py-2 border border-[#111111] font-mono text-[12px]">
               <span className="w-2.5 h-2.5 bg-[#F25C05] rounded-full animate-ping" />
               <span className="uppercase font-bold">
-                {stage === "scouting" && "1/3 Harvester scouring Reddit & Hacker News..."}
-                {stage === "generating" && "2/3 Reasoner synthesizing 5-8 bounded micro-SaaS candidates..."}
-                {stage === "validating" && "3/3 Running evidence-grounded 5-point scorecard..."}
+                {stage === "scouting" && "1/2 Scouring live Hacker News & GitHub discussions..."}
+                {(stage === "generating" || stage === "validating") && "2/2 Synthesizing verified software opportunities..."}
               </span>
             </div>
 
@@ -143,15 +179,9 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                 className="bg-[#F25C05] h-full transition-all duration-700"
                 style={{
                   width:
-                    stage === "scouting" ? "33%" : stage === "generating" ? "66%" : "92%",
+                    stage === "scouting" ? "45%" : "90%",
                 }}
               />
-            </div>
-
-            <div className="bg-[#111111] text-[#dbdad5] p-3 text-left font-mono text-[11px] leading-relaxed border border-[#111111]">
-              <p>&gt; Querying: r/SaaS, r/Entrepreneur, HN Ask HN...</p>
-              {stage !== "scouting" && <p>&gt; Filtered 42 complaints into 6 bounded software opportunities.</p>}
-              {stage === "validating" && <p>&gt; Computing TAM, competitor scan &amp; buildability constraints.</p>}
             </div>
           </div>
         )}

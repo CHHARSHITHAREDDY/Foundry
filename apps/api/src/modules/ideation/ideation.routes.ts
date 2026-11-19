@@ -22,24 +22,36 @@ export async function ideationRoutes(app: FastifyInstance) {
 
   // Workflow A: Surprise Me
   app.post("/api/ideas/surprise", async (request) => {
+    console.log("\n⚡ [SURPRISE ME] Received request from studio frontend");
     const body = SurpriseMeRequestSchema.parse(request.body || {});
     request.log.info("Starting Workflow A: Surprise Me pipeline");
 
+    console.log("⚡ [SURPRISE ME] 1/3 Scouring live Hacker News & GitHub discussions...");
     const painPoints = await scout.scoutPainPoints();
-    const candidates = await generator.generateCandidates(painPoints, body.maxCandidates || 5);
+    console.log(`⚡ [SURPRISE ME] Found ${painPoints.length} pain points.`);
 
-    const primary = candidates[0];
+    console.log("⚡ [SURPRISE ME] 2/3 Synthesizing candidate opportunities...");
+    const candidates = await generator.generateCandidates(painPoints, body.maxCandidates || 8);
+    console.log(`⚡ [SURPRISE ME] Synthesized ${candidates.length} candidates.`);
+
+    console.log("⚡ [SURPRISE ME] 3/3 Enriching candidate dossiers for founder review...");
+    const validatedCandidates: IdeaBrief[] = await Promise.all(
+      candidates.map((c) => validator.validateIdea(c))
+    );
+
+    const primary = validatedCandidates[0];
     if (!primary) {
       throw new Error("Failed to generate any candidate ideas");
     }
-    const validatedPrimary = await validator.validateIdea(primary);
 
-    cache.setIdea(validatedPrimary);
-    cache.setCandidates([validatedPrimary, ...candidates.slice(1)]);
+    cache.setIdea(primary);
+    cache.setCandidates(validatedCandidates);
+
+    console.log(`⚡ [SURPRISE ME] Selected: "${primary.title}". ${validatedCandidates.length} ideas cached for founder.\n`);
 
     return {
-      selectedIdea: validatedPrimary,
-      cachedCandidates: [validatedPrimary, ...candidates.slice(1)],
+      selectedIdea: primary,
+      cachedCandidates: validatedCandidates,
       scoutedPainPoints: painPoints,
     };
   });
@@ -83,20 +95,17 @@ export async function ideationRoutes(app: FastifyInstance) {
   // Next candidate from cache (Another idea button)
   app.get("/api/ideas/next-candidate", async (request, reply) => {
     const { currentId } = request.query as { currentId?: string };
+    console.log(`⚡ [NEXT CANDIDATE] Request cycling from currentId: ${currentId}`);
     const next = cache.getNextCandidate(currentId);
     if (!next) {
+      console.log("⚡ [NEXT CANDIDATE] No candidates in cache.");
       return reply.status(404).send({
         code: "NO_CANDIDATES",
         message: "No cached candidates found. Run Surprise Me first.",
       });
     }
 
-    if (!next.scorecard) {
-      const validated = await validator.validateIdea(next);
-      cache.setIdea(validated);
-      return validated;
-    }
-
+    console.log(`⚡ [NEXT CANDIDATE] Advanced to: "${next.title}" (${next.id})`);
     return next;
   });
 

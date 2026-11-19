@@ -39,6 +39,16 @@ export class LlmClient {
     }
   }
 
+  isConfigured(): boolean {
+    return !!(
+      this.geminiKey ||
+      this.groqKey ||
+      this.openAiKey ||
+      process.env.INFERENCE_API_KEY ||
+      process.env.OPENAI_API_KEY
+    );
+  }
+
   async complete(options: CompletionOptions): Promise<string> {
     // 1. Direct Google Gemini API
     if (this.geminiKey) {
@@ -118,8 +128,8 @@ export class LlmClient {
 
   private async callGemini(options: CompletionOptions): Promise<string> {
     const model = options.tier === "reasoner" || options.tier === "coder"
-      ? "gemini-2.5-pro"
-      : "gemini-2.5-flash";
+      ? "gemini-2.0-flash"
+      : "gemini-2.0-flash";
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.geminiKey}`;
 
