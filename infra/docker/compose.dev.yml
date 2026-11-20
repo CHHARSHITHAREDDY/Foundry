@@ -20,7 +20,7 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     env_file: ../../.env
     ports: ["4000:4000"]
-    volumes: ["../../services/model-gateway/config/litellm.config.yaml:/app/config.yaml:ro"]
+    volumes: ["../litellm/config.yaml:/app/config.yaml:ro"]
   searxng:
     image: searxng/searxng
     ports: ["8080:8080"]

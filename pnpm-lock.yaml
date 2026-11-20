@@ -17,6 +17,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.5.0
         version: 19.8.1
+      '@types/node':
+        specifier: ^20.14.9
+        version: 20.19.43
       dependency-cruiser:
         specifier: ^16.4.0
         version: 16.10.4

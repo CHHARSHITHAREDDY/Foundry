@@ -15,6 +15,7 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
   const [tweakedTitle, setTweakedTitle] = useState("");
   const [tweakedProblem, setTweakedProblem] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFetchingNext, setIsFetchingNext] = useState(false);
 
   if (!isOpen) return null;
 
@@ -63,6 +64,7 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
   };
 
   const handleNextCandidate = async () => {
+    setIsFetchingNext(true);
     try {
       const currentId = ideaData?.selectedIdea?.id || "";
       let res: Response | null = null;
@@ -80,28 +82,13 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
         }));
         setTweakedTitle(nextIdea.title || "Scouted Opportunity");
         setTweakedProblem(nextIdea.problem || "");
+        setIsFetchingNext(false);
         return;
       }
-    } catch {}
-
-    // Instant cycling through cachedCandidates array
-    if (ideaData?.cachedCandidates && ideaData.cachedCandidates.length > 1) {
-      const currentId = ideaData.selectedIdea?.id;
-      const currentIndex = ideaData.cachedCandidates.findIndex((c: any) => c.id === currentId);
-      const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % ideaData.cachedCandidates.length : 0;
-      const nextIdea = ideaData.cachedCandidates[nextIndex];
-
-      setIdeaData((prev: any) => ({
-        ...prev,
-        selectedIdea: nextIdea,
-      }));
-      setTweakedTitle(nextIdea.title || "Scouted Opportunity");
-      setTweakedProblem(nextIdea.problem || "");
-      return;
-    }
-
-    // Fallback to fresh run if cache exhausted
-    runSurpriseMe();
+    } catch { }
+    // Fallback to fresh run if stream exhausted
+    await runSurpriseMe();
+    setIsFetchingNext(false);
   };
 
   const handleStart = () => {
@@ -245,6 +232,45 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
               </div>
             </div>
 
+            {/* Financial Viability & Unit Economics */}
+            {ideaData.selectedIdea.financialModel && (
+              <div className="bg-[#EDEDEA] border border-[#111111] p-3 space-y-2">
+                <div className="flex items-center justify-between border-b border-[#D6D5D0] pb-1.5">
+                  <span className="font-mono text-[10px] uppercase font-bold text-[#111111] flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-[#15803D] inline-block" />
+                    MARKET GROWTH &amp; UNIT ECONOMICS
+                  </span>
+                  <span className="font-mono text-[10px] text-[#15803D] font-bold">
+                    {ideaData.selectedIdea.financialModel.cagr}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center py-1">
+                  <div className="bg-white border border-[#111111] p-1.5">
+                    <span className="font-mono text-[9px] text-[#5F5E5E] uppercase block">TAM</span>
+                    <span className="font-mono text-[12px] font-bold text-[#111111]">{ideaData.selectedIdea.financialModel.tam.split(" ")[0]}</span>
+                  </div>
+                  <div className="bg-white border border-[#111111] p-1.5">
+                    <span className="font-mono text-[9px] text-[#5F5E5E] uppercase block">SAM</span>
+                    <span className="font-mono text-[12px] font-bold text-[#111111]">{ideaData.selectedIdea.financialModel.sam.split(" ")[0]}</span>
+                  </div>
+                  <div className="bg-white border border-[#111111] p-1.5">
+                    <span className="font-mono text-[9px] text-[#5F5E5E] uppercase block">LTV : CAC</span>
+                    <span className="font-mono text-[12px] font-bold text-[#15803D]">
+                      {ideaData.selectedIdea.financialModel.unitEconomics.ltvCacRatio}x
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between font-mono text-[10px] text-[#474646] pt-1">
+                  <span>Payback: <strong className="text-[#111111]">{ideaData.selectedIdea.financialModel.unitEconomics.paybackMonths} mo</strong></span>
+                  <span>Starter: <strong className="text-[#111111]">{ideaData.selectedIdea.financialModel.pricingTiers.starter}</strong></span>
+                  <span>Pro: <strong className="text-[#111111]">{ideaData.selectedIdea.financialModel.pricingTiers.pro}</strong></span>
+                  <span>Breakeven: <strong className="text-[#111111]">{ideaData.selectedIdea.financialModel.unitEconomics.breakevenCustomers} users</strong></span>
+                </div>
+              </div>
+            )}
+
             {/* Citations & Evidence Links */}
             <div>
               <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5F5E5E] font-bold block mb-2">
@@ -293,9 +319,10 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
                 </button>
                 <button
                   onClick={handleNextCandidate}
-                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA] cursor-pointer"
+                  disabled={isFetchingNext}
+                  className="px-3 py-2 bg-white border border-[#111111] font-mono text-[11px] hover:bg-[#EDEDEA] cursor-pointer disabled:opacity-50"
                 >
-                  ANOTHER IDEA ➔
+                  {isFetchingNext ? "SCOUTING NEXT..." : "ANOTHER IDEA ➔"}
                 </button>
               </div>
 

@@ -11,6 +11,26 @@ export const CompetitorSchema = z.object({
   gap: z.string(),
 });
 
+export const FinancialViabilitySchema = z.object({
+  tam: z.string(),
+  sam: z.string(),
+  som: z.string(),
+  cagr: z.string(),
+  pricingTiers: z.object({
+    starter: z.string(),
+    pro: z.string(),
+    team: z.string(),
+  }),
+  unitEconomics: z.object({
+    estimatedCac: z.string(),
+    estimatedLtv: z.string(),
+    ltvCacRatio: z.number(),
+    paybackMonths: z.number(),
+    breakevenCustomers: z.number(),
+  }),
+  marketTimingJustification: z.string(),
+});
+
 export const MvpScopeSchema = z.object({
   screens: z.array(z.string()).min(1),
   coreApis: z.array(z.string()).min(1),
@@ -42,6 +62,7 @@ export const IdeaBriefSchema = z.object({
   scorecard: ScorecardSchema.optional(),
   verdict: VerdictSchema.optional(),
   evidence: z.array(EvidenceSchema).default([]),
+  financialModel: FinancialViabilitySchema.optional(),
   status: IdeaStatusSchema.default("SCOUTED"),
   userFeedback: z.string().optional(),
   createdAt: z.string().datetime().default(() => new Date().toISOString()),
@@ -49,6 +70,7 @@ export const IdeaBriefSchema = z.object({
 });
 
 export type Competitor = z.infer<typeof CompetitorSchema>;
+export type FinancialViability = z.infer<typeof FinancialViabilitySchema>;
 export type MvpScope = z.infer<typeof MvpScopeSchema>;
 export type IdeaStatus = z.infer<typeof IdeaStatusSchema>;
 export type IdeaBrief = z.infer<typeof IdeaBriefSchema>;

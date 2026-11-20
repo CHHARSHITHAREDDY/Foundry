@@ -1,9 +1,10 @@
 import { z } from "zod";
-import fs from "fs";
-import path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as process from "node:process";
 
 // Automatically load .env file from possible locations
-function loadEnvFromDisk() {
+function loadEnvFromDisk(): void {
   const candidates = [
     path.resolve(process.cwd(), ".env"),
     path.resolve(process.cwd(), "apps/api/.env"),
@@ -22,12 +23,14 @@ function loadEnvFromDisk() {
           if (eqIdx > 0) {
             const key = trimmed.slice(0, eqIdx).trim();
             const val = trimmed.slice(eqIdx + 1).trim().replace(/^["'](.*)["']$/, "$1");
-            if (process.env[key] === undefined || process.env[key] === "") {
+            if (val.length > 0 && (process.env[key] === undefined || process.env[key] === "")) {
               process.env[key] = val;
             }
           }
         }
-      } catch {}
+      } catch {
+        // ignore missing or unreadable env files
+      }
     }
   }
 }
@@ -42,7 +45,7 @@ export const ApiEnvSchema = z.object({
   CORS_ORIGIN: z.string().optional().default("http://localhost:3000,http://localhost:3002"),
   
   // Database Configuration
-  DATABASE_URL: z.string().default("postgresql://postgres:postgres@localhost:5432/venture_studio?schema=public"),
+  DATABASE_URL: z.string().default("postgresql://studio:studio@localhost:5432/studio?schema=public"),
   
   // Redis Configuration
   REDIS_URL: z.string().default("redis://localhost:6379"),
@@ -58,6 +61,19 @@ export const ApiEnvSchema = z.object({
   // Research & Search
   TAVILY_API_KEY: z.string().optional(),
   SEARXNG_URL: z.string().optional().default("http://localhost:8080"),
+
+  // Auth Configuration
+  JWT_SECRET: z.string().optional(),
+  JWT_USER_AUDIENCE: z.string().optional().default("studio-user"),
+  JWT_ADMIN_AUDIENCE: z.string().optional().default("studio-admin"),
+
+  // Storage / S3
+  S3_ENDPOINT: z.string().optional().default("http://localhost:9000"),
+  S3_ACCESS_KEY: z.string().optional().default("minioadmin"),
+  S3_SECRET_KEY: z.string().optional().default("minioadmin"),
+
+  // Integrations
+  GITHUB_TOKEN: z.string().optional(),
 });
 
 export type ApiEnv = z.infer<typeof ApiEnvSchema>;
@@ -70,3 +86,8 @@ export function getApiEnv(): ApiEnv {
   }
   return cachedEnv;
 }
+
+export function resetApiEnv(): void {
+  cachedEnv = null;
+}
+

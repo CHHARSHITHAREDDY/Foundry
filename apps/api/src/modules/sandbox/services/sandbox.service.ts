@@ -111,17 +111,23 @@ export class SandboxService {
     // Combine standard files with synthesized files
     const allFiles = { ...standardFiles, ...files };
 
-    // 4. Physically write every file to disk
+    // 4. Physically write every file to disk with strict canonical path traversal validation
+    const resolvedSandboxBase = path.resolve(sandboxPath);
     for (const [relativePath, content] of Object.entries(allFiles)) {
-      const fullPath = path.join(sandboxPath, relativePath);
-      const dirName = path.dirname(fullPath);
+      const cleanRelative = relativePath.replace(/^[/\\]+/, "");
+      const fullPath = path.resolve(resolvedSandboxBase, cleanRelative);
 
+      if (!fullPath.startsWith(resolvedSandboxBase + path.sep) && fullPath !== resolvedSandboxBase) {
+        throw new Error(`Security Violation: Path traversal attempt detected with relativePath '${relativePath}'`);
+      }
+
+      const dirName = path.dirname(fullPath);
       if (!fs.existsSync(dirName)) {
         fs.mkdirSync(dirName, { recursive: true });
       }
 
       fs.writeFileSync(fullPath, content, "utf-8");
-      artifacts.push(relativePath);
+      artifacts.push(cleanRelative);
     }
 
     return {

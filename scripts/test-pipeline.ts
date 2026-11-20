@@ -1,8 +1,8 @@
-import { TrendScoutService } from "../apps/api/services/ideation/src/domain/scout/trend-scout.service.js";
-import { IdeaGeneratorService } from "../apps/api/services/ideation/src/domain/generator/idea-generator.service.js";
-import { ValidatorService } from "../apps/api/services/ideation/src/domain/validator/validator.service.js";
-import { ClarifierService } from "../apps/api/services/ideation/src/domain/clarifier/clarifier.service.js";
-import { AgentSwarmExecutor } from "../apps/api/services/agent-runtime/src/runner/agent-executor.js";
+import { TrendScoutService } from "../apps/api/src/modules/ideation/domain/scout/trend-scout.service.js";
+import { IdeaGeneratorService } from "../apps/api/src/modules/ideation/domain/generator/idea-generator.service.js";
+import { ValidatorService } from "../apps/api/src/modules/ideation/domain/validator/validator.service.js";
+import { ClarifierService } from "../apps/api/src/modules/ideation/domain/clarifier/clarifier.service.js";
+import { AgentSwarmExecutor } from "../apps/api/src/modules/agent-runtime/runner/agent-executor.js";
 
 async function runVerification() {
   console.log("================================================================================");

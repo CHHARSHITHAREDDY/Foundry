@@ -1,39 +1,35 @@
-import { buildResearchServer } from "../apps/api/services/research/src/server.js";
-import { buildIdeationServer } from "../apps/api/services/ideation/src/server.js";
-import { buildApiUserServer } from "../apps/api/services/api-user/src/server.js";
+import { createApiServer } from "../apps/api/src/server.js";
 
 async function testHttpServices() {
-  console.log("Starting services Fastify HTTP injection test (inside apps/api/services)...");
+  console.log("Starting unified API Fastify HTTP injection test...");
 
-  // 1. Build servers
-  const research = await buildResearchServer();
-  const ideation = await buildIdeationServer();
-  const apiUser = await buildApiUserServer();
+  // 1. Build unified server
+  const app = await createApiServer();
 
-  // Test 1: GET /health on API-User via inject
-  console.log("Testing GET /health on API-User...");
-  const healthRes = await apiUser.inject({
+  // Test 1: GET /health via inject
+  console.log("Testing GET /health...");
+  const healthRes = await app.inject({
     method: "GET",
     url: "/health",
   });
   console.log("✅ Health check status:", healthRes.statusCode);
   console.log("✅ Health check body:", healthRes.json());
 
-  // Test 2: GET /pain-points on Research via inject
-  console.log("\nTesting GET /pain-points on Research Service...");
-  const painPointsRes = await research.inject({
+  // Test 2: GET /api/research/pain-points via inject
+  console.log("\nTesting GET /api/research/pain-points...");
+  const painPointsRes = await app.inject({
     method: "GET",
-    url: "/pain-points",
+    url: "/api/research/pain-points",
   });
   console.log("✅ Pain points status:", painPointsRes.statusCode);
   const painPointsData = painPointsRes.json();
   console.log(`✅ Scouted ${painPointsData.total} pain points from ${painPointsData.sourcesScanned.join(", ")}`);
 
-  // Test 3: POST /ideas/surprise on Ideation via inject
-  console.log("\nTesting POST /ideas/surprise on Ideation Service...");
-  const surpriseRes = await ideation.inject({
+  // Test 3: POST /api/ideas/surprise via inject
+  console.log("\nTesting POST /api/ideas/surprise...");
+  const surpriseRes = await app.inject({
     method: "POST",
-    url: "/ideas/surprise",
+    url: "/api/ideas/surprise",
     payload: { maxCandidates: 3 },
   });
   console.log("✅ Ideation Surprise Me status:", surpriseRes.statusCode);
@@ -45,21 +41,23 @@ async function testHttpServices() {
     candidatesCount: surpriseData.cachedCandidates.length,
   });
 
-  // Test 4: POST /ideas/clarify on Ideation via inject
-  console.log("\nTesting POST /ideas/clarify on Ideation Service...");
-  const clarifyRes = await ideation.inject({
+  // Test 4: POST /api/ideas/clarify via inject
+  console.log("\nTesting POST /api/ideas/clarify...");
+  const clarifyRes = await app.inject({
     method: "POST",
-    url: "/ideas/clarify",
-    payload: { rawIdea: "A SaaS tool for European invoice VAT reconciliation" },
+    url: "/api/ideas/clarify",
+    payload: { rawIdea: "Automated schema drift alerts for production Postgres" },
   });
-  console.log("✅ Clarify response:", clarifyRes.json());
+  console.log("✅ Ideation Clarify status:", clarifyRes.statusCode);
+  console.log("✅ Clarifier result:", {
+    needsClarification: clarifyRes.json().needsClarification,
+  });
 
-  console.log("\n================================================================================");
-  console.log("🎉 ALL SERVICES INSIDE apps/api/services PASSED VERIFICATION!");
-  console.log("================================================================================");
+  await app.close();
+  console.log("\n✅ All modular monolith endpoint injection checks passed successfully!");
 }
 
 testHttpServices().catch((err) => {
-  console.error("HTTP test failed:", err);
+  console.error("❌ Test failed:", err);
   process.exit(1);
 });

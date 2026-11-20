@@ -1,5 +1,10 @@
 import { LlmClient } from "@venture-studio/llm-client";
 import { BuildSpec } from "@venture-studio/contracts";
+import { z } from "zod";
+
+const GeneratedFilesSchema = z.object({
+  files: z.record(z.string()),
+});
 
 export class BackendStage {
   private llm: LlmClient;
@@ -23,9 +28,9 @@ Output a JSON object mapping file paths to complete TypeScript code:
 Return JSON: { "files": { "path": "code" } }.`;
 
     try {
-      const res: any = await this.llm.completeStructured(
+      const res = await this.llm.completeStructured(
         { tier: "coder", messages: [{ role: "user", content: prompt }], temperature: 0.2 },
-        null as any
+        GeneratedFilesSchema
       );
       if (res && res.files) return res;
     } catch {}

@@ -3,7 +3,7 @@ import { TrendScoutService } from "./domain/scout/trend-scout.service.js";
 import { IdeaGeneratorService } from "./domain/generator/idea-generator.service.js";
 import { ValidatorService } from "./domain/validator/validator.service.js";
 import { ClarifierService } from "./domain/clarifier/clarifier.service.js";
-import { IdeaCacheService } from "./domain/cache/idea-cache.service.js";
+import { IdeaCacheService, sharedIdeaCache } from "./domain/cache/idea-cache.service.js";
 import {
   SurpriseMeRequestSchema,
   ClarifyIdeaRequestSchema,
@@ -18,7 +18,7 @@ export async function ideationRoutes(app: FastifyInstance) {
   const generator = new IdeaGeneratorService();
   const validator = new ValidatorService();
   const clarifier = new ClarifierService();
-  const cache = new IdeaCacheService();
+  const cache = sharedIdeaCache;
 
   // Workflow A: Surprise Me
   app.post("/api/ideas/surprise", async (request) => {
@@ -92,20 +92,47 @@ export async function ideationRoutes(app: FastifyInstance) {
     return validated;
   });
 
-  // Next candidate from cache (Another idea button)
+  // Next candidate from stream (Another idea button)
   app.get("/api/ideas/next-candidate", async (request, reply) => {
     const { currentId } = request.query as { currentId?: string };
-    console.log(`⚡ [NEXT CANDIDATE] Request cycling from currentId: ${currentId}`);
-    const next = cache.getNextCandidate(currentId);
+    let next = cache.getNextCandidate(currentId);
+
+    // Dynamic infinite refill: if queue reached end, scout and synthesize fresh candidates on the fly!
     if (!next) {
-      console.log("⚡ [NEXT CANDIDATE] No candidates in cache.");
+      request.log.info("Ideation queue exhausted or empty. Dynamically sourcing fresh market candidates...");
+      const freshPainPoints = await scout.scoutPainPoints();
+      const freshCandidates = await generator.generateCandidates(freshPainPoints, 5);
+      if (freshCandidates.length > 0) {
+        cache.appendCandidates(freshCandidates);
+        next = cache.getNextCandidate(currentId) || freshCandidates[0];
+      }
+    }
+
+    if (!next) {
       return reply.status(404).send({
         code: "NO_CANDIDATES",
-        message: "No cached candidates found. Run Surprise Me first.",
+        message: "No candidates available.",
       });
     }
 
-    console.log(`⚡ [NEXT CANDIDATE] Advanced to: "${next.title}" (${next.id})`);
+    // Proactive background refill when remaining candidates <= 2
+    const currentIdx = cache.getCurrentIndex(next.id);
+    const totalQueue = cache.getQueueLength();
+    if (totalQueue - currentIdx <= 2) {
+      // Background task - do not block response
+      scout.scoutPainPoints().then((morePoints) => {
+        generator.generateCandidates(morePoints, 4).then((moreCandidates) => {
+          cache.appendCandidates(moreCandidates);
+        });
+      }).catch(() => {});
+    }
+
+    if (!next.scorecard) {
+      const validated = await validator.validateIdea(next);
+      cache.setIdea(validated);
+      return validated;
+    }
+
     return next;
   });
 

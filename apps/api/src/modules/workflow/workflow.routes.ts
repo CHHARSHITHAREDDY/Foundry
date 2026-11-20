@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { AgentSwarmExecutor } from "../agent-runtime/runner/agent-executor.js";
-import { IdeaCacheService } from "../ideation/domain/cache/idea-cache.service.js";
+import { sharedIdeaCache } from "../ideation/domain/cache/idea-cache.service.js";
 import { IdeaBriefSchema } from "@venture-studio/contracts";
 import { z } from "zod";
 
@@ -11,7 +11,7 @@ const TriggerRunSchema = z.object({
 
 export async function workflowRoutes(app: FastifyInstance) {
   const executor = new AgentSwarmExecutor();
-  const cache = new IdeaCacheService();
+  const cache = sharedIdeaCache;
 
   app.post("/api/runs", async (request, reply) => {
     const body = TriggerRunSchema.parse(request.body);
