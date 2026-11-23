@@ -1,4 +1,4 @@
-import { LlmClient } from "@venture-studio/llm-client";
+import { LlmClient, ModelUsage } from "@venture-studio/llm-client";
 import { IdeaBrief, BuildSpec, BuildSpecSchema } from "@venture-studio/contracts";
 
 export class ArchitectStage {
@@ -8,7 +8,7 @@ export class ArchitectStage {
     this.llm = llm;
   }
 
-  async execute(idea: IdeaBrief): Promise<BuildSpec> {
+  async execute(idea: IdeaBrief): Promise<{ spec: BuildSpec; usage: ModelUsage }> {
     const prompt = `You are the Lead System Architect for an autonomous software studio.
 Read this approved Idea Brief and produce the master Build Spec:
 
@@ -31,7 +31,7 @@ Produce a complete BuildSpec conforming to the schema:
 6. tasks: DAG of tasks for BACKEND, UI, CONTENT, INTEGRATOR, QA, REVIEWER, DEPLOYER.`;
 
     try {
-      const spec = await this.llm.completeStructured(
+      const { data: spec, usage } = await this.llm.completeStructured(
         {
           tier: "reasoner",
           messages: [{ role: "user", content: prompt }],
@@ -40,9 +40,12 @@ Produce a complete BuildSpec conforming to the schema:
         BuildSpecSchema
       );
       return {
-        ...spec,
-        createdAt: spec.createdAt || new Date().toISOString(),
-      } as BuildSpec;
+        spec: {
+          ...spec,
+          createdAt: spec.createdAt || new Date().toISOString(),
+        } as BuildSpec,
+        usage,
+      };
     } catch {
       const slug = idea.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       return {
@@ -120,6 +123,10 @@ Produce a complete BuildSpec conforming to the schema:
           ],
         },
         createdAt: new Date().toISOString(),
+      };
+      return {
+        spec: fallbackSpec,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
       };
     }
   }

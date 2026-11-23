@@ -4,6 +4,8 @@ import { IdeaGeneratorService } from "./domain/generator/idea-generator.service.
 import { ValidatorService } from "./domain/validator/validator.service.js";
 import { ClarifierService } from "./domain/clarifier/clarifier.service.js";
 import { IdeaCacheService, sharedIdeaCache } from "./domain/cache/idea-cache.service.js";
+import { requireAuth, enforceRateLimitAndBudget } from "../auth/guards/auth.guard.js";
+import { prismaDatabase } from "../../db/prisma.service.js";
 import {
   SurpriseMeRequestSchema,
   ClarifyIdeaRequestSchema,
@@ -20,11 +22,23 @@ export async function ideationRoutes(app: FastifyInstance) {
   const clarifier = new ClarifierService();
   const cache = sharedIdeaCache;
 
-  // Workflow A: Surprise Me
-  app.post("/api/ideas/surprise", async (request) => {
-    console.log("\n⚡ [SURPRISE ME] Received request from studio frontend");
+  // Workflow A: Surprise Me (Authenticated & Rate-Limited to protect Gemini spend)
+  app.post("/api/ideas/surprise", async (request, reply) => {
+    const user = await requireAuth(request, reply);
+    if (!user) return;
+
+    const budget = enforceRateLimitAndBudget(user, "surprise", 5, 25);
+    if (!budget.allowed) {
+      return reply.status(budget.statusCode || 429).send({
+        statusCode: budget.statusCode || 429,
+        error: "BUDGET_LIMIT_REACHED",
+        message: budget.error,
+      });
+    }
+
+    console.log(`\n⚡ [SURPRISE ME] Received request from authenticated operator: ${user.email} (Credits remaining: ${user.credits})`);
     const body = SurpriseMeRequestSchema.parse(request.body || {});
-    request.log.info("Starting Workflow A: Surprise Me pipeline");
+    request.log.info({ userId: user.id }, "Starting Workflow A: Surprise Me pipeline");
 
     console.log("⚡ [SURPRISE ME] 1/3 Scouring live Hacker News & GitHub discussions...");
     const painPoints = await scout.scoutPainPoints();
@@ -47,7 +61,23 @@ export async function ideationRoutes(app: FastifyInstance) {
     cache.setIdea(primary);
     cache.setCandidates(validatedCandidates);
 
-    console.log(`⚡ [SURPRISE ME] Selected: "${primary.title}". ${validatedCandidates.length} ideas cached for founder.\n`);
+    // Persist candidates and debit credit ledger in Neon PostgreSQL
+    try {
+      await Promise.all(
+        validatedCandidates.map((c) => prismaDatabase.persistVenture(c, user.id))
+      );
+      await prismaDatabase.recordCreditTransaction({
+        userId: user.id,
+        action: "RESERVE",
+        amount: -5,
+        reason: "SURPRISE_ME_SCOUT",
+        metadata: { selectedTitle: primary.title, candidatesCount: validatedCandidates.length },
+      });
+    } catch (dbErr: any) {
+      request.log.warn(`[IDEATION PERSISTENCE] Warning: ${dbErr.message}`);
+    }
+
+    console.log(`⚡ [SURPRISE ME] Selected: "${primary.title}". ${validatedCandidates.length} ideas cached and persisted to Postgres for founder.\n`);
 
     return {
       selectedIdea: primary,

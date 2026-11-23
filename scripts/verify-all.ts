@@ -48,22 +48,24 @@ async function verifyAll() {
   console.log(`   GET  /api/auth/session -> 200 OK (User: ${sessionRes.json().user.name}, Credits: ${sessionRes.json().user.credits})\n`);
 
   // --- Step 4: Workflow A (Surprise Me & Next Candidate) ---
-  console.log("🔹 4. Verifying Workflow A: 'Surprise Me' & Alternates Caching...");
+  console.log("🔹 4. Verifying Workflow A: 'Surprise Me' & Alternates Caching (Authenticated)...");
   const surpriseRes = await app.inject({
     method: "POST",
     url: "/api/ideas/surprise",
+    headers: { Authorization: `Bearer ${loginData.token}` },
     payload: { maxCandidates: 4 },
   });
-  if (surpriseRes.statusCode !== 200) throw new Error("Surprise Me failed");
+  if (surpriseRes.statusCode !== 200) throw new Error(`Surprise Me failed: ${surpriseRes.body}`);
   const surpriseData = surpriseRes.json();
   console.log(`   POST /api/ideas/surprise -> 200 OK`);
   console.log(`   Selected: "${surpriseData.selectedIdea.title}" (${surpriseData.selectedIdea.tagline})`);
-  console.log(`   Verdict: ${surpriseData.selectedIdea.verdict?.status || "GO"}, Score: ${surpriseData.selectedIdea.scorecard?.overallScore || 4.4}/5`);
+  console.log(`   Verdict: ${surpriseData.selectedIdea.verdict?.status || "INSUFFICIENT_DATA"}, Score: ${surpriseData.selectedIdea.scorecard?.overallScore ?? "null (Not Assessed)"}`);
   console.log(`   Cached Pool: ${surpriseData.cachedCandidates.length} ideas ready in memory`);
 
   const nextCandRes = await app.inject({
     method: "GET",
     url: `/api/ideas/next-candidate?currentId=${surpriseData.selectedIdea.id}`,
+    headers: { Authorization: `Bearer ${loginData.token}` },
   });
   if (nextCandRes.statusCode !== 200) throw new Error("Next candidate failed");
   console.log(`   GET  /api/ideas/next-candidate -> 200 OK (Alternate: "${nextCandRes.json().title}")\n`);
@@ -89,11 +91,12 @@ async function verifyAll() {
   console.log(`   POST /api/ideas/validate -> 200 OK (Score: ${validateRes.json().scorecard?.overallScore}/5)\n`);
 
   // --- Step 6: 8-Agent Swarm Runtime Build ---
-  console.log("🔹 6. Verifying 8-Agent Swarm Runtime Build...");
+  console.log("🔹 6. Verifying 8-Agent Swarm Runtime Build (Authenticated)...");
   // Test both payload shapes: wrapped in { idea: ... } and direct
   const buildRes = await app.inject({
     method: "POST",
     url: "/api/runtime/build",
+    headers: { Authorization: `Bearer ${loginData.token}` },
     payload: { idea: surpriseData.selectedIdea },
   });
   if (buildRes.statusCode !== 200) throw new Error(`Build failed: ${buildRes.body}`);
@@ -102,9 +105,10 @@ async function verifyAll() {
   console.log(`   Run ID: ${buildData.runId}`);
   console.log(`   Completed Stages: ${buildData.completedStages.join(" -> ")}`);
   console.log(`   Physical Files Written: ${buildData.sandboxResult.filesWritten} at ${buildData.sandboxResult.sandboxPath}`);
-  console.log(`   QA Playwright Assertion: passed=${buildData.qaReport.passed}`);
-  console.log(`   Reviewer Security Score: ${buildData.reviewerAudit.securityScore}/100`);
-  console.log(`   Live Allocated Subdomain: ${buildData.deployment.liveUrl}\n`);
+  console.log(`   Integrator Typecheck Status: ${buildData.integratorResult?.typeCheckStatus || "NOT_RUN"}`);
+  console.log(`   QA Playwright Status: ${buildData.qaReport.status} (passed=${buildData.qaReport.passed})`);
+  console.log(`   Reviewer Security Audit: ${buildData.reviewerAudit.auditStatus} (Score: ${buildData.reviewerAudit.securityScore}/100)`);
+  console.log(`   Live Deployment Status: ${buildData.deployment.status} (Simulated URL: ${buildData.deployment.simulatedUrl})\n`);
 
   // --- Step 7: Sprint Tasks Backlog & Lifecycle ---
   console.log("🔹 7. Verifying Sprint Task Management & Mutations...");

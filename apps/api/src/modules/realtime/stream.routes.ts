@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { RealtimeEventHub, StreamEvent } from "./event-hub.js";
+import { prismaDatabase } from "../../db/prisma.service.js";
 
 export async function realtimeRoutes(app: FastifyInstance) {
   const hub = RealtimeEventHub.getInstance();
@@ -10,15 +11,38 @@ export async function realtimeRoutes(app: FastifyInstance) {
     reply.raw.setHeader("Connection", "keep-alive");
     reply.raw.setHeader("Access-Control-Allow-Origin", "*");
 
-    // Initial connection message
+    // Check for Last-Event-ID header or query param for reconnection replay
+    const lastEventId =
+      (request.headers["last-event-id"] as string | undefined) ||
+      (request.query as any)?.lastEventId;
+
+    // Send initial connection handshake
     reply.raw.write(
-      `event: connected\ndata: ${JSON.stringify({ status: "connected", time: new Date().toISOString() })}\n\n`
+      `event: connected\ndata: ${JSON.stringify({
+        status: "connected",
+        time: new Date().toISOString(),
+        replayed: Boolean(lastEventId),
+      })}\n\n`
     );
 
-    // Listener for real-time broadcast events
+    // If reconnecting, replay missed events from PostgreSQL durability store
+    if (lastEventId) {
+      try {
+        const missedEvents = await prismaDatabase.getEventsSince("sse:studio", lastEventId);
+        for (const evt of missedEvents) {
+          reply.raw.write(
+            `id: ${evt.id}\nevent: ${evt.eventType}\ndata: ${JSON.stringify(evt.payload)}\n\n`
+          );
+        }
+      } catch (err: any) {
+        request.log.warn(`[SSE REPLAY] Failed to replay events since ${lastEventId}: ${err.message}`);
+      }
+    }
+
+    // Listener for live broadcast events
     const onEvent = (event: StreamEvent) => {
       try {
-        reply.raw.write(`event: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`);
+        reply.raw.write(`id: ${event.id || ""}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`);
       } catch {}
     };
 
@@ -37,4 +61,3 @@ export async function realtimeRoutes(app: FastifyInstance) {
     });
   });
 }
-

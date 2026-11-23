@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const VerdictStatusSchema = z.enum(["GO", "GO_WITH_CHANGES", "NO_GO"]);
+export const VerdictStatusSchema = z.enum(["GO", "GO_WITH_CHANGES", "NO_GO", "INSUFFICIENT_DATA"]);
 
 export const VerdictSchema = z.object({
   status: VerdictStatusSchema,
@@ -12,4 +12,5 @@ export const VerdictSchema = z.object({
 
 export type VerdictStatus = z.infer<typeof VerdictStatusSchema>;
 export type Verdict = z.infer<typeof VerdictSchema>;
+
 

@@ -13,4 +13,5 @@ test-results/
 evals/reports/*.json
 /builds/
 *.tsbuildinfo
+scratch/
 

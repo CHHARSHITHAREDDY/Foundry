@@ -1,9 +1,13 @@
 import { createApiServer } from "./server.js";
 import { getApiEnv } from "./config/env.js";
+import { orphanReaper } from "./modules/sandbox/services/orphan-reaper.service.js";
 
 async function main() {
   const env = getApiEnv();
   const server = await createApiServer();
+
+  // Initialize orphan reaper and restart recovery
+  orphanReaper.startCron();
 
   try {
     await server.listen({
@@ -23,6 +27,7 @@ async function main() {
   for (const signal of signals) {
     process.on(signal, async () => {
       server.log.info(`Received ${signal}, shutting down gracefully...`);
+      orphanReaper.stopCron();
       await server.close();
       process.exit(0);
     });

@@ -15,11 +15,20 @@ async function testHttpServices() {
   console.log("✅ Health check status:", healthRes.statusCode);
   console.log("✅ Health check body:", healthRes.json());
 
+  // Login first to get authenticated session
+  const loginRes = await app.inject({
+    method: "POST",
+    url: "/api/auth/login",
+    payload: { email: "founder@venturestudio.io" },
+  });
+  const token = loginRes.json().token;
+
   // Test 2: GET /api/research/pain-points via inject
   console.log("\nTesting GET /api/research/pain-points...");
   const painPointsRes = await app.inject({
     method: "GET",
     url: "/api/research/pain-points",
+    headers: { Authorization: `Bearer ${token}` },
   });
   console.log("✅ Pain points status:", painPointsRes.statusCode);
   const painPointsData = painPointsRes.json();
@@ -30,6 +39,7 @@ async function testHttpServices() {
   const surpriseRes = await app.inject({
     method: "POST",
     url: "/api/ideas/surprise",
+    headers: { Authorization: `Bearer ${token}` },
     payload: { maxCandidates: 3 },
   });
   console.log("✅ Ideation Surprise Me status:", surpriseRes.statusCode);

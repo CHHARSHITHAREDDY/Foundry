@@ -4,7 +4,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 enum UserRole {
@@ -17,6 +18,7 @@ enum VerdictStatus {
   GO
   GO_WITH_CHANGES
   NO_GO
+  INSUFFICIENT_DATA
 }
 
 enum RunStage {
@@ -34,6 +36,7 @@ enum RunStage {
 enum DeploymentStatus {
   BUILDING
   LIVE
+  SIMULATED
   FAILED
   ARCHIVED
 }
@@ -44,30 +47,33 @@ model User {
   name      String
   role      UserRole @default(FOUNDER)
   credits   Int      @default(250)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   ventures      Venture[]
   notifications Notification[]
+  creditLedger  CreditLedger[]
 
   @@map("users")
 }
 
 model Venture {
-  id             String           @id @default(uuid())
-  title          String
-  tagline        String?
-  problem        String           @db.Text
-  targetCustomer String
-  whyNow         String?          @db.Text
-  verdict        VerdictStatus    @default(GO)
-  totalScore     Float            @default(4.2)
-  subdomain      String?          @unique
-  status         DeploymentStatus @default(BUILDING)
-  ownerId        String
-  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id                      String           @id @default(uuid())
+  title                   String
+  tagline                 String?
+  problem                 String           @db.Text
+  targetCustomer          String           @map("target_customer")
+  whyNow                  String?          @db.Text @map("why_now")
+  verdict                 VerdictStatus    @default(INSUFFICIENT_DATA)
+  totalScore              Float?           @map("total_score")
+  scorecardType           String           @default("INSUFFICIENT_DATA") @map("scorecard_type")
+  assessedDimensionsCount Int              @default(0) @map("assessed_dimensions_count")
+  subdomain               String?          @unique
+  status                  DeploymentStatus @default(BUILDING)
+  ownerId                 String           @map("owner_id")
+  owner                   User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
 
   scorecard Scorecard?
   evidence  EvidenceCitation[]
@@ -78,79 +84,138 @@ model Venture {
 
 model Scorecard {
   id              String   @id @default(uuid())
-  ventureId       String   @unique
+  ventureId       String   @unique @map("venture_id")
   venture         Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
-  demand          Float    @default(4.0)
-  competition     Float    @default(4.0)
-  differentiation Float    @default(4.0)
-  monetization    Float    @default(4.0)
-  buildability    Float    @default(4.0)
-  total           Float    @default(4.0)
-  createdAt       DateTime @default(now())
+  demand          Float?
+  competition     Float?
+  differentiation Float?
+  monetization    Float?
+  buildability    Float?
+  total           Float?
+  scorecardType   String   @default("INSUFFICIENT_DATA") @map("scorecard_type")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("scorecards")
 }
 
 model EvidenceCitation {
-  id        String   @id @default(uuid())
-  ventureId String
-  venture   Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
-  source    String   // e.g. "r/SaaS", "Hacker News"
-  url       String
-  quote     String   @db.Text
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  ventureId        String   @map("venture_id")
+  venture          Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  source           String   // e.g. "Hacker News (Ask HN)", "GitHub (drizzle-team)"
+  url              String
+  quote            String   @db.Text
+  sourceType       String   @default("LIVE_API") @map("source_type") // "LIVE_API" | "SAMPLE_SPECIMEN"
+  citationVerified Boolean  @default(true) @map("citation_verified")
+  sampleNotice     String?  @db.Text @map("sample_notice")
+  createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("evidence_citations")
 }
 
-model WorkflowRun {
-  id              String   @id @default(uuid())
-  ventureId       String
-  venture         Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
-  currentStage    RunStage @default(PENDING)
-  completedStages String[] @default([])
-  logs            String[] @default([])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model CreditLedger {
+  id             String   @id @default(uuid())
+  idempotencyKey String?  @unique @map("idempotency_key")
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action         String   // "RESERVE" | "SETTLE" | "REFUND" | "BONUS"
+  amount         Int      // e.g. -5, -25
+  balance        Int      // Balance remaining after ledger entry
+  reason         String   // e.g. "SURPRISE_ME_SCOUT", "SWARM_BUILD_RESERVE", "STAGE_ARCHITECT_SETTLE"
+  stage          String?
+  runId          String?  @map("run_id")
+  tokensIn       Int      @default(0) @map("tokens_in")
+  tokensOut      Int      @default(0) @map("tokens_out")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  artifacts BuildArtifact[]
+  @@index([userId, createdAt])
+  @@map("credit_ledger")
+}
+
+model WorkflowRun {
+  id             String           @id @default(uuid())
+  ventureId      String           @map("venture_id")
+  venture        Venture          @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  ownerId        String?          @map("owner_id")
+  currentStage   RunStage         @default(PENDING) @map("current_stage")
+  completedStages String[]        @default([]) @map("completed_stages")
+  logs           String[]         @default([])
+  totalTokensIn  Int              @default(0) @map("total_tokens_in")
+  totalTokensOut Int              @default(0) @map("total_tokens_out")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  checkpoints RunStageCheckpoint[]
+  artifacts   BuildArtifact[]
 
   @@map("workflow_runs")
 }
 
+model RunStageCheckpoint {
+  id          String    @id @default(uuid())
+  runId       String    @map("run_id")
+  run         WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stage       RunStage
+  status      String    // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "NOT_RUN" | "SIMULATED"
+  input       Json?
+  output      Json?
+  tokensIn    Int       @default(0) @map("tokens_in")
+  tokensOut   Int       @default(0) @map("tokens_out")
+  durationMs  Int       @default(0) @map("duration_ms")
+  error       String?   @db.Text
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([runId, stage])
+  @@map("run_stage_checkpoints")
+}
+
 model BuildArtifact {
   id        String      @id @default(uuid())
-  runId     String
+  runId     String      @map("run_id")
   run       WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  filePath  String
+  filePath  String      @map("file_path")
   content   String      @db.Text
-  fileType  String
-  createdAt DateTime    @default(now())
+  fileType  String      @map("file_type")
+  createdAt DateTime    @default(now()) @map("created_at")
 
   @@map("build_artifacts")
 }
 
+model StudioEvent {
+  id        String   @id @default(uuid())
+  runId     String?  @map("run_id")
+  stream    String   @default("sse:studio")
+  eventType String   @map("event_type") // e.g. "STAGE_TRANSITION", "TASK_UPDATED", "TOKEN_METERED"
+  payload   Json
+  timestamp DateTime @default(now())
+
+  @@index([stream, timestamp])
+  @@map("studio_events")
+}
+
 model PaymentAccount {
   id              String   @id @default(uuid())
-  companyId       String   @unique
-  stripeAccountId String   @unique
-  chargesEnabled  Boolean  @default(false)
-  payoutsEnabled  Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  companyId       String   @unique @map("company_id")
+  stripeAccountId String   @unique @map("stripe_account_id")
+  chargesEnabled  Boolean  @default(false) @map("charges_enabled")
+  payoutsEnabled  Boolean  @default(false) @map("payouts_enabled")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("payment_accounts")
 }
 
 model Notification {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
   message   String   @db.Text
   read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("notifications")
 }
@@ -165,4 +230,3 @@ model AuditLog {
 
   @@map("audit_logs")
 }
-

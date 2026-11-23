@@ -327,7 +327,7 @@ STRICT PRODUCT & BUILDABILITY CONSTRAINTS:
 Return candidate products conforming to the schema.`;
 
     try {
-      const result = await this.llm.completeStructured(
+      const { data: result } = await this.llm.completeStructured(
         {
           tier: "reasoner",
           messages: [{ role: "user", content: prompt }],

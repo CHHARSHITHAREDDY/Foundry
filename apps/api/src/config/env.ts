@@ -50,6 +50,8 @@ export const ApiEnvSchema = z.object({
   // Redis Configuration
   REDIS_URL: z.string().default("redis://localhost:6379"),
   REDIS_KEY_PREFIX: z.string().default("foundry:"),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
   // Model Gateway & LLM
   LITELLM_URL: z.string().optional().default("http://localhost:4000"),

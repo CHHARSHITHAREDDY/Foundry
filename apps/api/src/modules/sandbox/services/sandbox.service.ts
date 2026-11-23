@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { validatePatch } from "../security/patch-validator.js";
 
 export interface SandboxExecutionResult {
   runId: string;
@@ -12,12 +13,14 @@ export interface SandboxExecutionResult {
 
 export class SandboxService {
   private baseDir: string;
+  private templateDir: string;
 
   constructor() {
     const rootDir = process.cwd().includes("apps")
       ? path.resolve(process.cwd(), "../..")
       : process.cwd();
     this.baseDir = path.resolve(rootDir, "builds");
+    this.templateDir = path.resolve(rootDir, "packages/templates/nextjs-saas");
   }
 
   async hydrateSandbox(
@@ -35,99 +38,57 @@ export class SandboxService {
 
     const artifacts: string[] = [];
 
-    // 2. Write build-spec.json if provided
+    // 2. Hydrate from golden nextjs-saas template
+    if (fs.existsSync(this.templateDir)) {
+      this.copyTemplateFiles(this.templateDir, sandboxPath, artifacts);
+
+      // Link node_modules from golden template to eliminate network install
+      const templateModules = path.join(this.templateDir, "node_modules");
+      const sandboxModules = path.join(sandboxPath, "node_modules");
+      if (fs.existsSync(templateModules) && !fs.existsSync(sandboxModules)) {
+        try {
+          fs.symlinkSync(templateModules, sandboxModules, "junction");
+        } catch {
+          // Fallback if junction not supported
+        }
+      }
+    }
+
+    // 3. Write build-spec.json
     if (buildSpec) {
       const specPath = path.join(sandboxPath, "build-spec.json");
       fs.writeFileSync(specPath, JSON.stringify(buildSpec, null, 2), "utf-8");
       artifacts.push("build-spec.json");
     }
 
-    // 3. Ensure standard scaffolding files exist if not present in synthesized files
-    const standardFiles: Record<string, string> = {
-      "package.json": JSON.stringify(
-        {
-          name: `@venture/${runId.toLowerCase()}`,
-          version: "0.1.0",
-          private: true,
-          type: "module",
-          scripts: {
-            dev: "next dev",
-            build: "next build",
-            start: "next start",
-            lint: "next lint",
-          },
-          dependencies: {
-            next: "^15.0.0",
-            react: "^19.0.0",
-            "react-dom": "^19.0.0",
-            zod: "^3.23.8",
-            clsx: "^2.1.1",
-            "tailwind-merge": "^2.5.2",
-            "lucide-react": "^0.441.0",
-          },
-          devDependencies: {
-            typescript: "^5.6.0",
-            "@types/node": "^20.14.9",
-            "@types/react": "^19.0.0",
-            "@types/react-dom": "^19.0.0",
-            tailwindcss: "^3.4.4",
-            postcss: "^8.4.38",
-          },
-        },
-        null,
-        2
-      ),
-      "tsconfig.json": JSON.stringify(
-        {
-          compilerOptions: {
-            target: "ES2022",
-            lib: ["dom", "dom.iterable", "esnext"],
-            allowJs: true,
-            skipLibCheck: true,
-            strict: true,
-            noEmit: true,
-            esModuleInterop: true,
-            module: "esnext",
-            moduleResolution: "bundler",
-            resolveJsonModule: true,
-            isolatedModules: true,
-            jsx: "preserve",
-            incremental: true,
-            plugins: [{ name: "next" }],
-            paths: { "@/*": ["./src/*"] },
-          },
-          include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-          exclude: ["node_modules"],
-        },
-        null,
-        2
-      ),
-      "next.config.ts": `import type { NextConfig } from "next";\nconst nextConfig: NextConfig = { reactStrictMode: true };\nexport default nextConfig;\n`,
-      "postcss.config.mjs": `export default { plugins: { tailwindcss: {} } };\n`,
-      "tailwind.config.ts": `import type { Config } from "tailwindcss";\nconst config: Config = { content: ["./src/**/*.{js,ts,jsx,tsx}"] };\nexport default config;\n`,
-      ".env.example": `DATABASE_URL="file:./dev.db"\nSTRIPE_SECRET_KEY="sk_test_mock"\nNEXT_PUBLIC_APP_URL="https://${runId}.foundry.studio"\n`,
-    };
+    // 4. Write .env.local
+    const envPath = path.join(sandboxPath, ".env.local");
+    fs.writeFileSync(
+      envPath,
+      `DATABASE_URL="file:./dev.db"\nNEXT_PUBLIC_APP_URL="https://${runId}.foundry.studio"\n`,
+      "utf-8"
+    );
+    artifacts.push(".env.local");
 
-    // Combine standard files with synthesized files
-    const allFiles = { ...standardFiles, ...files };
-
-    // 4. Physically write every file to disk with strict canonical path traversal validation
+    // 5. Overlay synthesized files with strict shared patch validation
     const resolvedSandboxBase = path.resolve(sandboxPath);
-    for (const [relativePath, content] of Object.entries(allFiles)) {
-      const cleanRelative = relativePath.replace(/^[/\\]+/, "");
-      const fullPath = path.resolve(resolvedSandboxBase, cleanRelative);
 
-      if (!fullPath.startsWith(resolvedSandboxBase + path.sep) && fullPath !== resolvedSandboxBase) {
-        throw new Error(`Security Violation: Path traversal attempt detected with relativePath '${relativePath}'`);
+    for (const [relativePath, content] of Object.entries(files)) {
+      if (!relativePath || typeof relativePath !== "string") {
+        continue;
       }
 
+      // Validates path, extensions, traversal, reserved names, file size, @ts-ignore, mass 'as any', and symlinks
+      validatePatch(relativePath, content, resolvedSandboxBase);
+
+      const fullPath = path.resolve(resolvedSandboxBase, relativePath);
       const dirName = path.dirname(fullPath);
       if (!fs.existsSync(dirName)) {
         fs.mkdirSync(dirName, { recursive: true });
       }
 
       fs.writeFileSync(fullPath, content, "utf-8");
-      artifacts.push(cleanRelative);
+      artifacts.push(relativePath);
     }
 
     return {
@@ -138,6 +99,29 @@ export class SandboxService {
       durationMs: Date.now() - startTime,
       artifacts,
     };
+  }
+
+  private copyTemplateFiles(src: string, dest: string, artifacts: string[]): void {
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.name === "node_modules" || entry.name === ".studio" || entry.name === ".git" || entry.name === ".next") {
+        continue;
+      }
+
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+
+      if (entry.isDirectory()) {
+        if (!fs.existsSync(destPath)) {
+          fs.mkdirSync(destPath, { recursive: true });
+        }
+        this.copyTemplateFiles(srcPath, destPath, artifacts);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+        artifacts.push(path.relative(this.baseDir, destPath));
+      }
+    }
   }
 }
 

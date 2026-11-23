@@ -31,19 +31,29 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
       setTimeout(() => setStage("generating"), 600);
       setTimeout(() => setStage("validating"), 1200);
 
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("studio_token") || "vst_mock_jwt_session"
+        : "vst_mock_jwt_session";
+
       let res: Response | null = null;
       try {
         // Direct Fastify API call
         res = await fetch(getApiEndpoint("/api/ideas/surprise"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({}),
         });
       } catch {
         // Fallback to Next.js proxy rewrite
         res = await fetch("/api/backend/ideas/surprise", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({}),
         });
       }
@@ -195,9 +205,25 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
             {/* Problem & Target */}
             <div className="bg-white border border-[#111111] p-4 space-y-3">
               <div>
-                <span className="font-mono text-[10px] uppercase text-[#F25C05] font-bold block mb-1">
-                  VERIFIED MARKET PAIN POINT
-                </span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-[10px] uppercase text-[#F25C05] font-bold block">
+                    MARKET OPPORTUNITY
+                  </span>
+                  {ideaData.selectedIdea.sourcePainPoint?.source_type === "SAMPLE_SPECIMEN" ? (
+                    <span className="bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B] font-mono text-[9px] px-2 py-0.5 font-bold">
+                      SAMPLE BENCHMARK SPECIMEN · UNVERIFIED
+                    </span>
+                  ) : ideaData.selectedIdea.sourcePainPoint?.citation_verified ? (
+                    <span className="bg-[#DCFCE7] text-[#166534] border border-[#22C55E] font-mono text-[9px] px-2 py-0.5 font-bold">
+                      LIVE RECONNAISSANCE · VERIFIED CITATION
+                    </span>
+                  ) : null}
+                  {ideaData.selectedIdea.verdict?.status === "INSUFFICIENT_DATA" && (
+                    <span className="bg-[#F3F4F6] text-[#374151] border border-[#9CA3AF] font-mono text-[9px] px-2 py-0.5 font-bold">
+                      INSUFFICIENT DATA (2/5 ASSESSED)
+                    </span>
+                  )}
+                </div>
                 {isTweaking ? (
                   <textarea
                     value={tweakedProblem}

@@ -77,7 +77,7 @@ async function runVerification() {
   console.log(`   QA Playwright Status: ${buildResult.qaReport.passed ? "PASSED (0 errors)" : "FAILED"}`);
   console.log(`   QA User Journeys Tested: ${buildResult.qaReport.userJourneysTested.length}`);
   console.log(`   Reviewer Security Audit Score: ${buildResult.reviewerAudit.securityScore}/100`);
-  console.log(`   Live Deployed URL: ${buildResult.deployment.liveUrl} (Status: ${buildResult.deployment.status})`);
+  console.log(`   Live Deployed URL: ${buildResult.deployment.liveUrl ?? buildResult.deployment.simulatedUrl} (Status: ${buildResult.deployment.status})`);
   console.log("================================================================================\n");
 }
 

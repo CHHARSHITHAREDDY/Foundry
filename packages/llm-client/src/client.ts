@@ -15,6 +15,22 @@ export interface CompletionOptions {
   jsonMode?: boolean;
 }
 
+export interface ModelUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface CompletionResult {
+  content: string;
+  usage: ModelUsage;
+}
+
+export interface StructuredResult<T> {
+  data: T;
+  usage: ModelUsage;
+}
+
 export class LlmClient {
   private baseUrl: string;
   private apiKey: string;
@@ -49,47 +65,54 @@ export class LlmClient {
     );
   }
 
-  async complete(options: CompletionOptions): Promise<string> {
-    // 1. Direct Google Gemini API
+  async completeWithUsage(options: CompletionOptions): Promise<CompletionResult> {
     if (this.geminiKey) {
       return this.callGemini(options);
     }
-
-    // 2. Default: Call OpenAI-compatible endpoint (LiteLLM, Groq, OpenAI, Ollama)
     return this.callOpenAiCompatible(options);
   }
 
-  async completeStructured<T>(options: CompletionOptions, schema: z.ZodType<T>): Promise<T> {
+  async complete(options: CompletionOptions): Promise<string> {
+    const res = await this.completeWithUsage(options);
+    return res.content;
+  }
+
+  async completeStructured<T>(
+    options: CompletionOptions,
+    schema: z.ZodType<T>
+  ): Promise<StructuredResult<T>> {
     const systemPrompt = `You MUST return your response as a valid, well-formed JSON object or array conforming to the requested schema. Do NOT include any explanations, greetings, or markdown fences outside the JSON.`;
     const messages = [
       { role: "system" as const, content: systemPrompt },
       ...options.messages,
     ];
 
-    const raw = await this.complete({
+    const { content: raw, usage } = await this.completeWithUsage({
       ...options,
       messages,
       jsonMode: true,
     });
 
-    return parseStructuredOutput(raw, schema);
+    const data = parseStructuredOutput(raw, schema);
+    return { data, usage };
   }
 
-  private async callOpenAiCompatible(options: CompletionOptions): Promise<string> {
+  private async callOpenAiCompatible(options: CompletionOptions): Promise<CompletionResult> {
     const url = `${this.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
-    // Resolve model name based on provider
     let modelName = options.tier as string;
     if (this.groqKey && this.baseUrl.includes("groq.com")) {
-      modelName = options.tier === "reasoner" || options.tier === "coder"
-        ? "llama-3.3-70b-versatile"
-        : "llama-3.1-8b-instant";
+      modelName =
+        options.tier === "reasoner" || options.tier === "coder"
+          ? "llama-3.3-70b-versatile"
+          : "llama-3.1-8b-instant";
     } else if (this.openAiKey && this.baseUrl.includes("openai.com")) {
-      modelName = options.tier === "reasoner" || options.tier === "coder"
-        ? "gpt-4o"
-        : "gpt-4o-mini";
+      modelName =
+        options.tier === "reasoner" || options.tier === "coder"
+          ? "gpt-4o"
+          : "gpt-4o-mini";
     }
 
     try {
@@ -115,7 +138,20 @@ export class LlmClient {
       }
 
       const data = await response.json();
-      return data.choices[0]?.message?.content || "";
+      const content = data.choices[0]?.message?.content || "";
+
+      const promptTokens =
+        data.usage?.prompt_tokens ?? Math.ceil(JSON.stringify(options.messages).length / 4);
+      const completionTokens =
+        data.usage?.completion_tokens ?? Math.ceil(content.length / 4);
+
+      const usage: ModelUsage = {
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+      };
+
+      return { content, usage };
     } catch (err: any) {
       if (err.name === "AbortError") {
         throw new Error(`LLM request timed out after 60s for tier ${options.tier}`);
@@ -126,10 +162,11 @@ export class LlmClient {
     }
   }
 
-  private async callGemini(options: CompletionOptions): Promise<string> {
-    const model = options.tier === "reasoner" || options.tier === "coder"
-      ? "gemini-2.0-flash"
-      : "gemini-2.0-flash";
+  private async callGemini(options: CompletionOptions): Promise<CompletionResult> {
+    const model =
+      options.tier === "reasoner" || options.tier === "coder"
+        ? "gemini-2.0-flash"
+        : "gemini-2.0-flash";
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.geminiKey}`;
 
@@ -156,7 +193,20 @@ export class LlmClient {
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    const promptTokens =
+      data.usageMetadata?.promptTokenCount ?? Math.ceil(JSON.stringify(options.messages).length / 4);
+    const completionTokens =
+      data.usageMetadata?.candidatesTokenCount ?? Math.ceil(content.length / 4);
+
+    const usage: ModelUsage = {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+    };
+
+    return { content, usage };
   }
 }
 

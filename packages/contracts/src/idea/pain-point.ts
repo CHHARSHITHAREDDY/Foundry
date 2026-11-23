@@ -8,6 +8,9 @@ export const PainPointSchema = z.object({
   quote: z.string().min(5),
   frequency_score: z.number().min(1).max(10).default(5),
   domain: z.string().optional(),
+  source_type: z.enum(["LIVE_API", "SAMPLE_SPECIMEN"]).default("LIVE_API"),
+  citation_verified: z.boolean().default(false),
+  sample_notice: z.string().optional(),
   scouted_at: z.string().datetime().default(() => new Date().toISOString()),
 });
 

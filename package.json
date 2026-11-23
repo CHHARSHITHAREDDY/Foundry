@@ -6,6 +6,7 @@
     "node": ">=20.11"
   },
   "scripts": {
+    "truth": "tsx scripts/truth-tests.ts",
     "dev": "turbo run dev --parallel",
     "api:dev": "pnpm --filter @venture-studio/api dev",
     "api:build": "pnpm --filter @venture-studio/api build",

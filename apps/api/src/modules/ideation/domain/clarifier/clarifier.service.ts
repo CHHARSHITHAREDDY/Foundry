@@ -47,7 +47,7 @@ RULES:
 - If answers are provided and sufficient, synthesize the final "clarifiedIdea" and set "needsClarification": false.`;
 
     try {
-      return await this.llm.completeStructured(
+      const { data } = await this.llm.completeStructured(
         {
           tier: "fast",
           messages: [{ role: "user", content: prompt }],
@@ -55,6 +55,7 @@ RULES:
         },
         ClarifierOutputSchema
       );
+      return data;
     } catch {
       if (rawIdea.length < 20) {
         return {

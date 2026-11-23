@@ -323,14 +323,20 @@ export class TrendScoutService {
     // 1. Process Hacker News Ask HN Stories
     if (hnStoriesRes.status === "fulfilled" && Array.isArray(hnStoriesRes.value)) {
       for (const hit of hnStoriesRes.value) {
+        const rawBody = hit.story_text || hit.title || "";
+        const quote = rawBody.slice(0, 300).trim();
+        const verified = rawBody.length > 0 && rawBody.includes(quote);
+
         hnStories.push({
           id: `pp_hn_${hit.objectID || Math.random().toString(36).substring(2, 9)}`,
           problem: hit.title.replace(/^Ask HN:\s*/i, "").trim(),
           who_has_it: `Hacker News founders & engineers (${hit.author || "community"})`,
           source_url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
-          quote: hit.story_text ? hit.story_text.slice(0, 300) : hit.title,
+          quote,
           frequency_score: Math.min(10, Math.max(4, Math.floor((hit.points || 15) / 15))),
           domain: "Hacker News (Ask HN)",
+          source_type: "LIVE_API",
+          citation_verified: verified,
           scouted_at: new Date().toISOString(),
         });
       }
@@ -339,14 +345,20 @@ export class TrendScoutService {
     // 2. Process Hacker News Comments
     if (hnCommentsRes.status === "fulfilled" && Array.isArray(hnCommentsRes.value)) {
       for (const comment of hnCommentsRes.value) {
+        const rawBody = comment.story_text || comment.title || "";
+        const quote = rawBody.slice(0, 300).trim();
+        const verified = rawBody.length > 0 && rawBody.includes(quote);
+
         hnComments.push({
           id: `pp_hnc_${comment.objectID || Math.random().toString(36).substring(2, 9)}`,
           problem: comment.title ? comment.title.slice(0, 140) : "Developer Workflow Bottleneck",
           who_has_it: `Hacker News operator (${comment.author || "engineer"})`,
           source_url: comment.url || `https://news.ycombinator.com/item?id=${comment.objectID}`,
-          quote: comment.story_text ? comment.story_text.slice(0, 300) : comment.title || "",
+          quote,
           frequency_score: Math.min(10, Math.max(3, Math.floor((comment.points || 5) / 5))),
           domain: "Hacker News (Comments)",
+          source_type: "LIVE_API",
+          citation_verified: verified,
           scouted_at: new Date().toISOString(),
         });
       }
@@ -355,14 +367,20 @@ export class TrendScoutService {
     // 3. Process GitHub Issues
     if (githubRes.status === "fulfilled" && Array.isArray(githubRes.value)) {
       for (const issue of githubRes.value) {
+        const rawBody = issue.body || issue.title || "";
+        const quote = rawBody.slice(0, 300).trim();
+        const verified = rawBody.length > 0 && rawBody.includes(quote);
+
         githubIssues.push({
           id: `pp_gh_${Math.random().toString(36).substring(2, 9)}`,
           problem: issue.title.replace(/^Feature Request:\s*/i, "").trim(),
           who_has_it: `Developers of ${issue.repo} (${issue.author})`,
           source_url: issue.url,
-          quote: issue.body ? issue.body.slice(0, 300) : issue.title,
+          quote,
           frequency_score: Math.min(10, Math.max(4, Math.floor(((issue.reactions || 1) + (issue.comments || 1)) / 8))),
           domain: `GitHub (${issue.repo})`,
+          source_type: "LIVE_API",
+          citation_verified: verified,
           scouted_at: new Date().toISOString(),
         });
       }
@@ -371,14 +389,20 @@ export class TrendScoutService {
     // 4. Process Reddit Posts
     if (redditRes.status === "fulfilled" && Array.isArray(redditRes.value)) {
       for (const post of redditRes.value) {
+        const rawBody = post.selftext || post.title || "";
+        const quote = rawBody.slice(0, 300).trim();
+        const verified = rawBody.length > 0 && rawBody.includes(quote);
+
         redditPosts.push({
           id: `pp_reddit_${Math.random().toString(36).substring(2, 9)}`,
           problem: post.title.trim(),
           who_has_it: `r/${post.subreddit} community (${post.author})`,
           source_url: post.url,
-          quote: post.selftext ? post.selftext.slice(0, 300) : post.title,
+          quote,
           frequency_score: Math.min(10, Math.max(3, Math.floor((post.score || 10) / 10))),
           domain: `r/${post.subreddit}`,
+          source_type: "LIVE_API",
+          citation_verified: verified,
           scouted_at: new Date().toISOString(),
         });
       }
@@ -407,6 +431,9 @@ export class TrendScoutService {
         quote: seed.quote,
         frequency_score: seed.frequency_score,
         domain: seed.domain,
+        source_type: "SAMPLE_SPECIMEN",
+        citation_verified: false,
+        sample_notice: "Sample benchmark specimen for testing/development. Quote not verified against live URL.",
         scouted_at: new Date().toISOString(),
       };
 

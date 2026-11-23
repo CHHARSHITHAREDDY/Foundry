@@ -12,6 +12,8 @@ export * from "./idea/idea-brief.js";
 
 export * from "./build-spec/index.js";
 
+export * from "./runtime/gate-result.js";
+
 export * from "./events/envelope.js";
 export * from "./events/ideation.js";
 export * from "./events/workflow.js";
