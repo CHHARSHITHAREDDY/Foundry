@@ -69,7 +69,7 @@ const COMPANY_TASKS: TaskItem[] = [
 function CompanyConsoleContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const companyName = searchParams.get("company") || "PriceWatch";
+  const companyName = searchParams.get("company") || "Workspace";
 
   // Tab State: OVERVIEW | TASKS | CODE & REPO | SETTINGS | GROWTH
   const [activeTab, setActiveTab] = useState<"OVERVIEW" | "TASKS" | "CODE" | "SETTINGS" | "GROWTH">("OVERVIEW");
@@ -82,7 +82,7 @@ function CompanyConsoleContent() {
 
   // Sync state from backend
   useEffect(() => {
-    api.getCompany(companyName).then((c) => {
+    api.getCompany(companyName).then((c: any) => {
       if (c) {
         if (typeof c.autoRunEnabled === "boolean") setAutoRunEnabled(c.autoRunEnabled);
         if (typeof c.nightTasksEnabled === "boolean") setNightTasksEnabled(c.nightTasksEnabled);
@@ -195,12 +195,12 @@ function CompanyConsoleContent() {
                 LIVE IN PRODUCTION
               </span>
               <a
-                href="https://pricewatch-4k2.foundry.app"
+                href="https://Workspace-4k2.foundry.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-mono text-xs text-primary hover:underline"
               >
-                https://pricewatch-4k2.foundry.app ↗
+                https://Workspace-4k2.foundry.app ↗
               </a>
             </div>
 
@@ -265,7 +265,7 @@ function CompanyConsoleContent() {
                   onNightToggle={handleToggleNight}
                 />
                 <BusinessStats revenue="$0.00" visitors={1} activeInstalls={0} />
-                <WebsitePanel companyName={companyName} endpoint="https://pricewatch-4k2.foundry.app" />
+                <WebsitePanel companyName={companyName} endpoint="https://Workspace-4k2.foundry.app" />
               </div>
 
               {/* Column 2 (4 cols): Tasks & Documents */}

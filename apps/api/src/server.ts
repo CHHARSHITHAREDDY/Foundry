@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import { createLogger, registerErrorHandler } from "@venture-studio/service-kit";
@@ -14,8 +15,8 @@ import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { realtimeRoutes } from "./modules/realtime/stream.routes.js";
 
 // Feature Modules
-import { authRoutes } from "./modules/auth/auth.routes.js";
-import { billingRoutes } from "./modules/billing/billing.routes.js";
+import { authRoutes, devOutboxRoutes } from "./modules/auth/auth.routes.js";
+import { billingRoutes, pricingRoutes } from "./modules/billing/billing.routes.js";
 import { deployerRoutes } from "./modules/deployer/deployer.routes.js";
 import { sandboxRoutes } from "./modules/sandbox/sandbox.routes.js";
 import { analyticsRoutes } from "./modules/analytics/analytics.routes.js";
@@ -36,7 +37,7 @@ import { userRoutes } from "./modules/api-user/user.routes.js";
 import { modelGatewayRoutes } from "./modules/model-gateway/gateway.routes.js";
 import { reviewRoutes } from "./modules/review/review.routes.js";
 import { buildsRoutes } from "./modules/builds/builds.routes.js";
-import { companiesRoutes } from "./modules/companies/companies.routes.js";
+import { companiesRoutes, dashboardRoutes } from "./modules/companies/companies.routes.js";
 
 export async function createApiServer(): Promise<FastifyInstance> {
   const env = getApiEnv();
@@ -50,9 +51,12 @@ export async function createApiServer(): Promise<FastifyInstance> {
 
   // Security & Utility Plugins
   await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(cookie);
   await app.register(cors, {
     origin: env.CORS_ORIGIN ? env.CORS_ORIGIN.split(",") : true,
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await app.register(sensible);
   registerErrorHandler(app);
@@ -64,9 +68,12 @@ export async function createApiServer(): Promise<FastifyInstance> {
   await app.register(runtimeRoutes);
   await app.register(workflowRoutes);
   await app.register(realtimeRoutes);
+  await app.register(pricingRoutes);
+  await app.register(dashboardRoutes);
 
   // Register Feature Modules
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(devOutboxRoutes, { prefix: "/api/dev" });
   await app.register(billingRoutes, { prefix: "/api/billing" });
   await app.register(deployerRoutes, { prefix: "/api/deployments" });
   await app.register(sandboxRoutes, { prefix: "/api/sandbox" });

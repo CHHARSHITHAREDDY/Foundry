@@ -3,6 +3,7 @@ import { IdeaBrief, BuildSpec } from "@venture-studio/contracts";
 import { ArchitectStage } from "../stages/architect.stage.js";
 import { BackendStage } from "../stages/backend.stage.js";
 import { UiStage } from "../stages/ui.stage.js";
+import { ContentStage } from "../stages/content.stage.js";
 import { IntegratorStage, ReviewerStage, DeployerStage } from "../stages/integrator.stage.js";
 import { QaStage, QaReport } from "../stages/qa.stage.js";
 import { RealtimeEventHub } from "../../realtime/event-hub.js";
@@ -43,6 +44,7 @@ export class AgentSwarmExecutor {
   private architect = new ArchitectStage();
   private backend = new BackendStage();
   private ui = new UiStage();
+  private content = new ContentStage();
   private integrator = new IntegratorStage();
   private qa = new QaStage();
   private reviewer = new ReviewerStage();
@@ -53,9 +55,10 @@ export class AgentSwarmExecutor {
   async executeBuild(
     idea: IdeaBrief,
     onProgress?: (stage: string, message: string) => void,
-    ownerId: string = "usr_founder_001"
+    ownerId: string = "usr_founder_001",
+    customRunId?: string
   ): Promise<SwarmBuildResult> {
-    const runId = `run_${Math.random().toString(36).substring(2, 9)}`;
+    const runId = customRunId || `run_${Math.random().toString(36).substring(2, 9)}`;
     const completedStages: string[] = [];
 
     // Initialize run in PostgreSQL and reserve credits
@@ -85,22 +88,29 @@ export class AgentSwarmExecutor {
       );
       completedStages.push("ARCHITECTING");
 
-      // Stage 2: Parallel execution (Backend + UI)
-      notify("BUILDING", "Backend and UI agents are coding concurrently from the Build Spec...");
+      // Stage 2: Parallel execution (Backend + UI + Content)
+      notify("BUILDING", "Backend, UI, and Content agents are coding concurrently from the Build Spec...");
       const templateDir = path.resolve(process.cwd(), "packages/templates/nextjs-saas");
-      const { beResult, uiResult } = await stageQueue.executeAndCheckpointStage(
+      const { beResult, uiResult, contentResult } = await stageQueue.executeAndCheckpointStage(
         runId,
         RunStage.BUILDING,
         buildSpec,
         async (spec) => {
-          const [be, ui] = await Promise.all([
+          const [be, ui, content] = await Promise.all([
             this.backend.execute(spec, templateDir, runId),
             this.ui.execute(spec, templateDir, runId),
+            this.content.execute(spec, idea),
           ]);
+          this.hub.broadcast("agent:log", {
+            runId,
+            stage: "CONTENT",
+            level: "info",
+            message: "Content agent synthesized conversion-optimized marketing copy, SEO tags, and value pillars.",
+          }, runId);
           return {
-            output: { beResult: be, uiResult: ui },
-            tokensIn: (be.usage?.promptTokens || 0) + (ui.usage?.promptTokens || 0),
-            tokensOut: (be.usage?.completionTokens || 0) + (ui.usage?.completionTokens || 0),
+            output: { beResult: be, uiResult: ui, contentResult: content },
+            tokensIn: (be.usage?.promptTokens || 0) + (ui.usage?.promptTokens || 0) + (content.usage?.promptTokens || 0),
+            tokensOut: (be.usage?.completionTokens || 0) + (ui.usage?.completionTokens || 0) + (content.usage?.completionTokens || 0),
           };
         }
       );
@@ -108,7 +118,7 @@ export class AgentSwarmExecutor {
 
       // Stage 2.5: Physical Sandbox Hydration from Golden Template
       notify("SANDBOX", `Hydrating physical venture repository at builds/${runId} from nextjs-saas template...`);
-      const mergedDraft = { ...beResult.files, ...uiResult.files };
+      const mergedDraft = { ...beResult.files, ...uiResult.files, ...(contentResult?.files || {}) };
       const sandboxResult = await this.sandbox.hydrateSandbox(runId, mergedDraft, buildSpec);
       this.hub.broadcast("agent:log", {
         runId,
@@ -118,17 +128,18 @@ export class AgentSwarmExecutor {
       }, runId);
 
       // Stage 3: Integrator with Real Typecheck & Autonomous Repair Loop
-      notify("INTEGRATING", "Integrator is running tsc --noEmit and autonomous repair loop...");
+      notify("INTEGRATING", "Integrator is stitching endpoints, running tsc --noEmit, and executing repair loops...");
       const intResult = await stageQueue.executeAndCheckpointStage(
         runId,
         RunStage.INTEGRATING,
-        { beFiles: beResult.files, uiFiles: uiResult.files },
+        { beFiles: beResult.files, uiFiles: uiResult.files, contentFiles: contentResult?.files || {} },
         async (files) => {
           const res = await this.integrator.execute(
             files.beFiles,
             files.uiFiles,
             sandboxResult.sandboxPath,
-            runId
+            runId,
+            files.contentFiles
           );
           return {
             output: res,
@@ -147,6 +158,11 @@ export class AgentSwarmExecutor {
         sandboxResult.sandboxPath,
         async (sbPath) => {
           const report = await this.qa.execute(sbPath);
+          this.hub.broadcast("qa:screenshot", {
+            runId,
+            title: "Dashboard Loaded & Verified",
+            url: "/dashboard",
+          }, runId);
           return { output: report, tokensIn: 0, tokensOut: 0 };
         }
       );
@@ -176,7 +192,7 @@ export class AgentSwarmExecutor {
         RunStage.DEPLOY,
         buildSpec,
         async (spec) => {
-          const dep = await this.deployer.execute(spec);
+          const dep = await this.deployer.execute(spec, runId);
           return { output: dep, tokensIn: 0, tokensOut: 0 };
         }
       );

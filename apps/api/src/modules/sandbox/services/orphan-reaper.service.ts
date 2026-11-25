@@ -101,7 +101,7 @@ export class OrphanReaperService {
         const orphanedRuns = await prisma.runStageCheckpoint.findMany({
           where: {
             status: "RUNNING",
-            updatedAt: { lt: staleDate },
+            createdAt: { lt: staleDate },
           },
         });
 

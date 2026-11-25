@@ -34,13 +34,13 @@ export class BuildRunnerService {
     }
 
     try {
-      execSync("docker --version", { stdio: "ignore" });
+      execSync("docker info", { stdio: "ignore" });
       this.containerBin = "docker";
       return "docker";
     } catch {}
 
     try {
-      execSync("podman --version", { stdio: "ignore" });
+      execSync("podman info", { stdio: "ignore" });
       this.containerBin = "podman";
       return "podman";
     } catch {}
@@ -178,7 +178,7 @@ export class BuildRunnerService {
         const content = fs.readFileSync(file, "utf-8");
         const throwMatch = content.match(/\bthrow\s+new\s+Error\((['"`])(.*?)\1\)/);
         if (throwMatch) {
-          renderCrashMessage = throwMatch[2];
+          renderCrashMessage = throwMatch[2] || "Render crash detected";
           crashingFile = path.relative(sandboxPath, file);
           break;
         }

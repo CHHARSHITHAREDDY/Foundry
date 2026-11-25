@@ -9,11 +9,11 @@ interface TwitterPanelProps {
 }
 
 export function TwitterPanel({
-  companyName = "PriceWatch",
-  defaultHandle = "@PriceWatchHQ",
+  companyName = "Workspace",
+  defaultHandle = "@WorkspaceHQ",
 }: TwitterPanelProps) {
   const [tweetText, setTweetText] = useState(
-    `🚀 Today we are launching PriceWatch for Shopify! Guard your profit margins in real-time with automated Shopify GraphQL price adjustments.\n\nLive on https://pricewatch-4k2.foundry.app`
+    `🚀 Today we are launching Venture Workspace! Guard your profit margins in real-time with automated Shopify GraphQL price adjustments.\n\nLive on https://Workspace-4k2.foundry.app`
   );
   const [posted, setPosted] = useState(false);
 

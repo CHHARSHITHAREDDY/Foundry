@@ -5,6 +5,8 @@ import { sandboxService } from "../apps/api/src/modules/sandbox/services/sandbox
 import { prismaDatabase } from "../apps/api/src/db/prisma.service.js";
 import { stageQueue } from "../apps/api/src/modules/agent-runtime/queue/stage-queue.service.js";
 import { buildRunner } from "../apps/api/src/modules/sandbox/services/build-runner.service.js";
+import { HnAlgoliaSourceClient } from "../apps/api/src/modules/research/sources/hn-algolia.client.js";
+import { TrendScoutService } from "../apps/api/src/modules/ideation/domain/scout/trend-scout.service.js";
 import { BuildSpec } from "@venture-studio/contracts";
 
 interface TestCaseResult {
@@ -446,6 +448,226 @@ async function runTruthTests() {
     }
   } catch (err: any) {
     recordResult("Case 7: Token counts written to ledger equal model usage (no hardcoded per-stage constants)", false, err.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Case 8: All live items are within their date window and origin LIVE
+  // ---------------------------------------------------------------------------
+  try {
+    const hnClient = new HnAlgoliaSourceClient();
+    const windowDays = 30;
+    const now = Date.now();
+    const minTimestampMs = now - (windowDays + 1) * 86400 * 1000;
+
+    const liveItems = await hnClient.searchLiveHn({ windowDays });
+    if (!liveItems || liveItems.length === 0) {
+      recordResult(
+        "Case 8: All live items are within their date window and origin LIVE",
+        false,
+        "No live items returned from live client"
+      );
+    } else {
+      let allValid = true;
+      let failureReason = "";
+
+      for (const item of liveItems) {
+        if (item.origin !== "LIVE") {
+          allValid = false;
+          failureReason = `Item '${item.title}' has origin '${item.origin}', expected 'LIVE'`;
+          break;
+        }
+        const itemTime = new Date(item.created_at).getTime();
+        if (isNaN(itemTime) || itemTime < minTimestampMs) {
+          allValid = false;
+          failureReason = `Item '${item.title}' created_at (${item.created_at}) is outside the ${windowDays}-day window`;
+          break;
+        }
+      }
+
+      if (allValid) {
+        recordResult(
+          "Case 8: All live items are within their date window and origin LIVE",
+          true,
+          undefined,
+          { count: liveItems.length, sampleOrigin: liveItems[0].origin, sampleDate: liveItems[0].created_at }
+        );
+      } else {
+        recordResult(
+          "Case 8: All live items are within their date window and origin LIVE",
+          false,
+          failureReason
+        );
+      }
+    }
+  } catch (err: any) {
+    recordResult("Case 8: All live items are within their date window and origin LIVE", false, err.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Case 9: Two consecutive runs overlap under 30% (Novelty & Query Rotation)
+  // ---------------------------------------------------------------------------
+  try {
+    const hnClient = new HnAlgoliaSourceClient();
+    const run1 = await hnClient.searchLiveHn({ windowDays: 30 });
+    const run2 = await hnClient.searchLiveHn({ windowDays: 30 });
+
+    if (!run1.length || !run2.length) {
+      recordResult(
+        "Case 9: Two consecutive runs overlap under 30%",
+        false,
+        `One of the runs returned empty: run1=${run1.length}, run2=${run2.length}`
+      );
+    } else {
+      const urls1 = new Set(run1.map((i) => i.url));
+      const overlapCount = run2.filter((i) => urls1.has(i.url)).length;
+      const minLen = Math.min(run1.length, run2.length);
+      const overlapRatio = minLen > 0 ? overlapCount / minLen : 0;
+
+      if (overlapRatio < 0.30) {
+        recordResult(
+          "Case 9: Two consecutive runs overlap under 30%",
+          true,
+          undefined,
+          { overlapRatio: Math.round(overlapRatio * 100) + "%", run1Count: run1.length, run2Count: run2.length, overlapCount }
+        );
+      } else {
+        recordResult(
+          "Case 9: Two consecutive runs overlap under 30%",
+          false,
+          `Overlap ratio was ${Math.round(overlapRatio * 100)}% (threshold < 30%)`
+        );
+      }
+    }
+  } catch (err: any) {
+    recordResult("Case 9: Two consecutive runs overlap under 30%", false, err.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Case 10: With network blocked, result is INSUFFICIENT_LIVE_DATA, never seeds
+  // ---------------------------------------------------------------------------
+  try {
+    const originalFetch = globalThis.fetch;
+    const originalSampleEnv = process.env.SAMPLE_DATA;
+    delete process.env.SAMPLE_DATA;
+
+    try {
+      // Mock network block
+      globalThis.fetch = async () => {
+        throw new Error("ENOTFOUND: Simulated network block");
+      };
+
+      const scout = new TrendScoutService();
+      const offlineResults = await scout.scoutPainPoints();
+
+      // Offline results MUST be empty (never seeds)
+      const noSeedsReturned = Array.isArray(offlineResults) && offlineResults.length === 0;
+
+      // Simulate route response with 0 pain points
+      const routeStatus = offlineResults.length === 0 ? "INSUFFICIENT_LIVE_DATA" : "OK";
+      const routeMessage = offlineResults.length === 0 ? "No fresh signals found. Try again." : "";
+
+      if (noSeedsReturned && routeStatus === "INSUFFICIENT_LIVE_DATA" && routeMessage === "No fresh signals found. Try again.") {
+        recordResult("Case 10: With network blocked, result is INSUFFICIENT_LIVE_DATA, never seeds", true);
+      } else {
+        recordResult(
+          "Case 10: With network blocked, result is INSUFFICIENT_LIVE_DATA, never seeds",
+          false,
+          `Expected empty results and status INSUFFICIENT_LIVE_DATA, got ${offlineResults.length} items with status ${routeStatus}`
+        );
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalSampleEnv !== undefined) {
+        process.env.SAMPLE_DATA = originalSampleEnv;
+      }
+    }
+  } catch (err: any) {
+    recordResult("Case 10: With network blocked, result is INSUFFICIENT_LIVE_DATA, never seeds", false, err.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Case 11: No production import of the static pools
+  // ---------------------------------------------------------------------------
+  try {
+    const apiSrcDir = path.resolve(process.cwd(), "apps/api/src");
+    const forbiddenSymbols = [
+      "DIVERSE_MARKET_SEEDS",
+      "getCuratedHnPool",
+      "getCuratedRedditPool",
+      "getCuratedGitHubPool",
+      "SUFFIX_VARIANTS",
+    ];
+
+    function scanFiles(dir: string): string[] {
+      const violations: string[] = [];
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          violations.push(...scanFiles(fullPath));
+        } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+          const content = fs.readFileSync(fullPath, "utf-8");
+          for (const sym of forbiddenSymbols) {
+            // Match import { ... sym ... }
+            const importRegex = new RegExp(`\\bimport\\s*\\{[^}]*\\b${sym}\\b[^}]*\\}`, "g");
+            if (importRegex.test(content)) {
+              violations.push(`${entry.name}: imports ${sym}`);
+            }
+          }
+        }
+      }
+      return violations;
+    }
+
+    const violations = scanFiles(apiSrcDir);
+    if (violations.length === 0) {
+      recordResult("Case 11: No production import of the static pools", true);
+    } else {
+      recordResult(
+        "Case 11: No production import of the static pools",
+        false,
+        `Detected static pool imports in: ${violations.join(", ")}`
+      );
+    }
+  } catch (err: any) {
+    recordResult("Case 11: No production import of the static pools", false, err.message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Case 12: No empty template files in packages/templates/nextjs-saas
+  // ---------------------------------------------------------------------------
+  try {
+    const templateDir = path.resolve(process.cwd(), "packages/templates/nextjs-saas");
+    function findEmptyFiles(dir: string): string[] {
+      const emptyList: string[] = [];
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          emptyList.push(...findEmptyFiles(fullPath));
+        } else if (entry.isFile()) {
+          if (entry.name === ".gitkeep") continue;
+          const stat = fs.statSync(fullPath);
+          if (stat.size === 0) {
+            emptyList.push(path.relative(templateDir, fullPath));
+          }
+        }
+      }
+      return emptyList;
+    }
+
+    const emptyFiles = findEmptyFiles(templateDir);
+    if (emptyFiles.length === 0) {
+      recordResult("Case 12: No empty template files in packages/templates/nextjs-saas", true);
+    } else {
+      recordResult(
+        "Case 12: No empty template files in packages/templates/nextjs-saas",
+        false,
+        `Found ${emptyFiles.length} empty file(s): ${emptyFiles.slice(0, 5).join(", ")}${emptyFiles.length > 5 ? "..." : ""}`
+      );
+    }
+  } catch (err: any) {
+    recordResult("Case 12: No empty template files in packages/templates/nextjs-saas", false, err.message);
   }
 
   console.log("\n================================================================================");

@@ -23,4 +23,12 @@ export * from "./api/ideation/requests.js";
 export * from "./api/ideation/responses.js";
 export * from "./api/research/requests.js";
 export * from "./api/research/responses.js";
+export * from "./api/auth/requests.js";
+export * from "./api/auth/responses.js";
+export * from "./api/billing/requests.js";
+export * from "./api/billing/responses.js";
+export * from "./api/notifications/requests.js";
+export * from "./api/notifications/responses.js";
+export * from "./api/companies/requests.js";
+export * from "./api/companies/responses.js";
 

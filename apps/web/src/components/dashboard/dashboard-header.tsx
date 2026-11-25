@@ -1,77 +1,140 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+
 interface DashboardHeaderProps {
   currentBreadcrumb?: string;
   onOpenCommandPalette: () => void;
   onNotificationsClick?: () => void;
+  user?: { name: string; email: string };
 }
 
 export function DashboardHeader({
-  currentBreadcrumb = "Companies",
+  currentBreadcrumb = "Dashboard",
   onOpenCommandPalette,
   onNotificationsClick,
+  user,
 }: DashboardHeaderProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const { data: notifData } = useQuery({
+    queryKey: ["notifications", "count"],
+    queryFn: () => api.getNotifications({ limit: 1, unreadOnly: true }),
+  });
+
+  const unreadCount = notifData?.unreadCount ?? 0;
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await api.logout();
+    } finally {
+      queryClient.clear();
+      router.push("/login");
+    }
+  };
+
   return (
-    <header className="fixed top-0 left-60 right-0 h-14 bg-surface/90 backdrop-blur-md border-b border-[#111111] z-40 px-space-md flex items-center justify-between">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-space-md">
-        <div className="font-label-md text-label-md text-secondary uppercase flex items-center gap-1.5 font-mono">
-          <span className="text-on-surface font-semibold">Workspace</span>
-          <span>//</span>
-          <span>Syndicate-01</span>
+    <header className="fixed top-0 left-60 right-0 h-14 bg-surface/95 backdrop-blur-md border-b border-ink z-40 px-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="font-mono text-xs text-muted uppercase flex items-center gap-1.5">
+          <span className="text-ink font-semibold">Foundry</span>
           <span>/</span>
-          <span className="text-primary font-bold">{currentBreadcrumb}</span>
+          <span className="text-accent font-bold">{currentBreadcrumb}</span>
         </div>
       </div>
 
-      {/* Search Input Trigger */}
-      <div className="flex-1 max-w-sm mx-space-lg">
-        <div
+      {/* Command Menu Trigger */}
+      <div className="flex-1 max-w-sm mx-6">
+        <button
+          type="button"
           onClick={onOpenCommandPalette}
-          className="relative flex items-center cursor-pointer group"
+          className="w-full h-8 px-3 bg-surface-container-lowest border border-ink font-mono text-xs text-muted flex items-center justify-between hover:border-accent transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined absolute left-2.5 text-[16px] text-secondary group-hover:text-primary transition-colors">
-            search
+          <span className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">search</span>
+            <span>Search companies &amp; pages...</span>
           </span>
-          <input
-            readOnly
-            onClick={onOpenCommandPalette}
-            type="text"
-            placeholder="Search entities, records, logs..."
-            className="w-full h-8 pl-8 pr-12 bg-surface-container-lowest border border-[#111111] font-label-sm text-label-sm text-on-surface placeholder:text-secondary focus:outline-none focus:border-primary rounded-DEFAULT cursor-pointer select-none"
-          />
-          <div className="absolute right-2 px-1 py-0.5 border border-surface-variant bg-surface-container font-label-sm text-label-sm text-secondary uppercase font-mono">
+          <span className="px-1.5 py-0.5 border border-border-subtle bg-stone text-[10px] text-ink">
             ⌘K
-          </div>
-        </div>
+          </span>
+        </button>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-space-md">
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-surface-container border border-surface-variant font-label-sm text-label-sm text-secondary font-mono">
-          <span className="w-1.5 h-1.5 bg-[#15803D]" />
-          <span>SYS_OK</span>
-          <span className="text-surface-variant">|</span>
-          <span>LATENCY 18ms</span>
-        </div>
-
+      <div className="flex items-center gap-3 relative">
         <button
           onClick={onNotificationsClick}
           type="button"
-          className="relative p-1 text-on-surface hover:text-primary transition-colors cursor-pointer"
+          data-testid="notifications-bell-button"
+          className="relative p-1.5 text-ink hover:text-accent transition-colors cursor-pointer border border-transparent hover:border-ink"
           title="Notifications"
         >
           <span className="material-symbols-outlined text-[20px]">notifications</span>
-          <span className="absolute top-1 right-1 w-2 h-2 bg-primary" />
+          {unreadCount > 0 && (
+            <span
+              data-testid="notifications-unread-badge"
+              className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-accent text-on-primary font-mono text-[10px] font-bold flex items-center justify-center border border-ink"
+            >
+              {unreadCount}
+            </span>
+          )}
         </button>
 
-        <div className="h-4 w-px bg-surface-variant" />
+        <div className="h-4 w-px bg-border-subtle" />
 
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow-sm">
-          <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+        <div className="relative">
+          <button
+            type="button"
+            data-testid="user-menu-button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="flex items-center gap-2 px-2.5 py-1 border border-ink bg-surface-container-lowest hover:bg-stone font-mono text-xs cursor-pointer"
+          >
+            <span className="w-2 h-2 bg-success inline-block" />
+            <span className="font-bold text-ink max-w-32 truncate">{user?.name || "Operator"}</span>
+            <span className="material-symbols-outlined text-[16px]">expand_more</span>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-60 bg-surface-container-lowest border-editorial border-ink shadow-editorial p-3 z-50 space-y-2 font-mono text-xs">
+              <div className="pb-2 border-b border-border-subtle">
+                <p className="font-bold text-ink truncate">{user?.name}</p>
+                <p className="text-[11px] text-muted truncate">{user?.email}</p>
+              </div>
+              <Link
+                href="/billing"
+                onClick={() => setMenuOpen(false)}
+                className="block py-1.5 px-2 hover:bg-stone text-ink"
+              >
+                Billing &amp; Credits
+              </Link>
+              <Link
+                href="/notifications"
+                onClick={() => setMenuOpen(false)}
+                className="block py-1.5 px-2 hover:bg-stone text-ink"
+              >
+                Notifications
+              </Link>
+              <button
+                type="button"
+                data-testid="logout-button"
+                disabled={loggingOut}
+                onClick={handleLogout}
+                className="w-full text-left py-1.5 px-2 bg-error-soft text-error border border-error font-bold uppercase text-[11px] hover:bg-error hover:text-on-primary transition-colors cursor-pointer"
+              >
+                {loggingOut ? "Signing out..." : "Sign Out"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
-

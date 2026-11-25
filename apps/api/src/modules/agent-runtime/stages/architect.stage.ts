@@ -48,7 +48,7 @@ Produce a complete BuildSpec conforming to the schema:
       };
     } catch {
       const slug = idea.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      return {
+      const fallbackSpec: BuildSpec = {
         id: `spec_${Math.random().toString(36).substring(2, 9)}`,
         ideaId: idea.id,
         metadata: {

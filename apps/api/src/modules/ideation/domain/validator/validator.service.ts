@@ -1,5 +1,27 @@
-import { IdeaBrief, Evidence, VerdictStatus, FinancialViability } from "@venture-studio/contracts";
+import { IdeaBrief } from "@venture-studio/contracts";
 import { SearchRouter } from "../../../research/search/search.router.js";
+
+export interface FetchedCompetitor {
+  name: string;
+  url: string;
+  pricingText: string | null;
+  gap: string;
+  fetchedAt: string;
+}
+
+export interface HonestScorecard {
+  demand: number | null;
+  competition: number | null;
+  differentiation: number | null;
+  monetization: number | null;
+  buildability: number | null;
+  total: number | null;
+  assessedDimensionsCount: number;
+  scorecardType: "PRELIMINARY" | "INSUFFICIENT_DATA";
+  basis: Record<string, "EVIDENCE" | "HEURISTIC" | "NOT_ASSESSED">;
+  sources: string[];
+  verdictLabel: "PRELIMINARY" | "INSUFFICIENT_DATA" | "NO_GO_SIGNALS";
+}
 
 export class ValidatorService {
   private searchRouter: SearchRouter;
@@ -8,200 +30,119 @@ export class ValidatorService {
     this.searchRouter = new SearchRouter();
   }
 
-  async validateIdea(idea: IdeaBrief): Promise<IdeaBrief> {
-    const query = `${idea.title} ${idea.problem.slice(0, 80)} SaaS pricing`;
-    const searchResults = await this.searchRouter.search(query, 5);
+  private async fetchPricingSnippet(url: string): Promise<string | null> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": "FoundryMarketValidator/2.0" },
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return null;
+      const html = await res.text();
+      const text = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+      const priceMatch = text.match(/(\$\d+(?:\.\d{2})?\s*(?:\/|\s*per\s*)(?:mo|month|yr|year|user|seat)?|free tier|enterprise pricing)/i);
+      return priceMatch ? priceMatch[0].trim() : text.slice(0, 140).trim();
+    } catch {
+      return null;
+    }
+  }
 
-    // 1. Extract competitors from live research
-    const dynamicCompetitors = searchResults.length > 0
-      ? searchResults.slice(0, 3).map((r, i) => {
-          const rawName = (r.title.split(/[-|:]/)[0] || "").trim();
-          return {
-            name: rawName || `Market Alternative ${i + 1}`,
-            url: r.url,
-            pricing: i === 0 ? "$29/mo" : i === 1 ? "$49/mo" : "$99/mo",
-            gap: "Heavyweight legacy suite; complex enterprise onboarding required.",
-          };
-        })
-      : idea.competitors.length > 0
-      ? idea.competitors
-      : [
-          {
-            name: "Internal Custom Scripts",
-            gap: "Custom ad-hoc scripts or manual spreadsheets with no automated alerts.",
-            pricing: "Engineering hours ($150/hr)",
-          },
-        ];
+  async validateIdea(idea: IdeaBrief): Promise<IdeaBrief & { honestScorecard: HonestScorecard; fetchedCompetitors: FetchedCompetitor[] }> {
+    const query = `${idea.title} ${idea.problem.slice(0, 60)} pricing`;
+    let searchResults: any[] = [];
+    try {
+      searchResults = await this.searchRouter.search(query, 4);
+    } catch {
+      searchResults = [];
+    }
 
-    // 2. Combine source evidence with live search findings
-    const dynamicEvidence: Evidence[] = [
-      ...idea.evidence,
-      ...searchResults.slice(0, 3).map((s) => ({
-        id: `ev_search_${Math.random().toString(36).substring(2, 9)}`,
-        type: "search_demand" as const,
-        url: s.url,
-        title: s.title,
-        snippet: s.snippet,
-        verified: true,
-        confidence: "high" as const,
-        gathered_at: new Date().toISOString(),
-      })),
-    ];
+    const fetchedCompetitors: FetchedCompetitor[] = [];
+    for (const r of searchResults.slice(0, 3)) {
+      if (!r.url || !r.url.startsWith("http")) continue;
+      const pricingText = await this.fetchPricingSnippet(r.url);
+      fetchedCompetitors.push({
+        name: (r.title?.split(/[-|:]/)[0] || "Competitor").trim(),
+        url: r.url,
+        pricingText: pricingText || null,
+        gap: r.snippet ? r.snippet.slice(0, 140) : "Observed in search results",
+        fetchedAt: new Date().toISOString(),
+      });
+    }
 
-    // 3. Multidimensional Scorecard with Phase 3 Deep Market Validation
-    const freq = idea.sourcePainPoint?.frequency_score;
-    const demandScore = freq !== undefined && freq !== null
-      ? Number(Math.min(5, Math.max(1.0, freq / 2)).toFixed(1))
-      : 4.2;
-    const demandAssessed = true;
-    const demandReason = `Grounded in ${freq || 8}/10 community resonance frequency signal from ${idea.sourcePainPoint?.domain || "forums"}.`;
+    const verifiedEvidenceCount = idea.evidence.filter((e) => e.verified).length;
+    const sources = Array.from(new Set(idea.evidence.map((e) => e.url).filter(Boolean)));
 
-    // Competition: Assessed via live search & market saturation
-    const compCount = dynamicCompetitors.length;
-    const competitionScore = compCount >= 2 ? 4.0 : 4.4;
-    const compAssessed = true;
-    const compReason = compCount >= 2
-      ? `Identified ${compCount} market alternatives. Market gap exists in frictionless zero-config onboarding.`
-      : `Low competition density detected in immediate problem niche.`;
+    // Honest nullable dimensions: NOT_ASSESSED (null) if not researched!
+    const demand = verifiedEvidenceCount >= 1
+      ? Number(Math.min(5, Math.max(2.0, 2.2 + verifiedEvidenceCount * 0.6)).toFixed(1))
+      : null;
 
-    // Differentiation: Assessed against feature gaps
-    const diffScore = 4.2;
-    const diffAssessed = true;
-    const diffReason = `Unique wedge: zero-friction automation tailored specifically for ${idea.targetCustomer}.`;
+    const competition = fetchedCompetitors.length > 0
+      ? Number(Math.min(5, Math.max(2.5, 4.5 - fetchedCompetitors.length * 0.3)).toFixed(1))
+      : null;
 
-    // Monetization: Assessed via target buyer willingness-to-pay
-    const lowerCust = (idea.targetCustomer || "").toLowerCase();
-    const isB2bOrDev =
-      lowerCust.includes("developer") ||
-      lowerCust.includes("engineer") ||
-      lowerCust.includes("founder") ||
-      lowerCust.includes("steward") ||
-      lowerCust.includes("devops") ||
-      lowerCust.includes("team") ||
-      lowerCust.includes("operator") ||
-      lowerCust.includes("cto") ||
-      lowerCust.includes("admin");
+    const differentiation = (idea as any).wedge ? 3.8 : null;
+    const monetization = fetchedCompetitors.some((c) => Boolean(c.pricingText)) ? 4.0 : null;
+    const buildability = idea.mvpScope?.screens?.length ? Number(Math.min(5, Math.max(2.5, 5.0 - idea.mvpScope.screens.length * 0.25)).toFixed(1)) : null;
 
-    const monetizationScore = isB2bOrDev ? 4.5 : 3.8;
-    const monetizationAssessed = true;
-    const monetizationReason = isB2bOrDev
-      ? `High B2B monetization leverage: ${idea.targetCustomer} willing to pay $29-$99/mo for automated zero-error reliability.`
-      : `Moderate self-serve monetization potential.`;
+    const basis: Record<string, "EVIDENCE" | "HEURISTIC" | "NOT_ASSESSED"> = {
+      demand: demand !== null ? "EVIDENCE" : "NOT_ASSESSED",
+      competition: competition !== null ? "EVIDENCE" : "NOT_ASSESSED",
+      differentiation: differentiation !== null ? "HEURISTIC" : "NOT_ASSESSED",
+      monetization: monetization !== null ? "EVIDENCE" : "NOT_ASSESSED",
+      buildability: buildability !== null ? "HEURISTIC" : "NOT_ASSESSED",
+    };
 
-    // Buildability: Evaluated against screens & API footprint
-    const screenCount = idea.mvpScope?.screens?.length || 3;
-    const buildabilityScore = screenCount <= 3 ? 4.6 : 3.2;
-    const buildabilityAssessed = true;
-    const buildabilityReason = `Target scope bounded to ${screenCount} screens on Next.js 15 and Fastify microservice rails.`;
-
-    // Calculate overall score across all 5 assessed dimensions
-    const assessedScores = [
-      { score: demandScore, weight: 0.25 },
-      { score: competitionScore, weight: 0.20 },
-      { score: diffScore, weight: 0.20 },
-      { score: monetizationScore, weight: 0.20 },
-      { score: buildabilityScore, weight: 0.15 },
-    ];
-
-    const totalWeight = assessedScores.reduce((sum, s) => sum + s.weight, 0);
-    const overallScore = Number(
-      (assessedScores.reduce((sum, s) => sum + s.score * s.weight, 0) / totalWeight).toFixed(1)
+    const assessedVals = [demand, competition, differentiation, monetization, buildability].filter(
+      (v): v is number => v !== null
     );
+    const total = assessedVals.length > 0
+      ? Number(((assessedVals.reduce((a, b) => a + b, 0) / assessedVals.length) * 20).toFixed(1))
+      : null;
 
-    const scorecardType = "MARKET_VALIDATED";
-    let verdictStatus: VerdictStatus = "GO";
-    if (overallScore >= 4.0) {
-      verdictStatus = "GO";
-    } else if (overallScore >= 3.0) {
-      verdictStatus = "GO_WITH_CHANGES";
-    } else {
-      verdictStatus = "NO_GO";
-    }
+    const verdictLabel: "PRELIMINARY" | "INSUFFICIENT_DATA" | "NO_GO_SIGNALS" =
+      verifiedEvidenceCount === 0
+        ? "INSUFFICIENT_DATA"
+        : total !== null && total < 45
+        ? "NO_GO_SIGNALS"
+        : "PRELIMINARY";
 
-    const summary = `Market validated across 5 dimensions with verified competitor pricing and community resonance signals (Score: ${overallScore}/5).`;
-
-    const warnings: string[] = [];
-    if (compCount > 3) {
-      warnings.push("High incumbent saturation; positioning must emphasize speed-to-value wedge.");
-    }
-
-    const pivotSuggestions = [
-      `Target initial launch specifically to ${idea.targetCustomer} (${idea.archetype.toLowerCase().replace(/\s+/g, "_")}).`,
-      `Set up real-time webhook/email notifications as the primary retention wedge.`,
-      `Anchor self-serve pricing at $29/mo to capture indie/SMB demand.`,
-    ];
-
-    const suggestedChanges = [
-      `Implement automated daily reconciliation as default.`,
-      `Provide 1-click Slack/Discord alert webhooks.`,
-    ];
-
-    // 4. Hydrate Financial Viability Model
-    const financialModel: FinancialViability = {
-      tam: isB2bOrDev ? "$5.1B Developer Tools & Workflow Automation" : "$3.2B B2B SaaS Workflow Market",
-      sam: "$850M Early-stage tech & scaleup infrastructure",
-      som: "$42M Direct organic search & founder communities",
-      cagr: "15.8% YoY",
-      pricingTiers: {
-        starter: "$29/mo",
-        pro: "$79/mo",
-        team: "$199/mo",
-      },
-      unitEconomics: {
-        estimatedCac: "$45.00",
-        estimatedLtv: "$460.00",
-        ltvCacRatio: 10.2,
-        paybackMonths: 3.5,
-        breakevenCustomers: 120,
-      },
-      marketTimingJustification:
-        "Surge in autonomous dev workflows has increased demand for zero-touch micro-SaaS utilities.",
+    const honestScorecard: HonestScorecard = {
+      demand,
+      competition,
+      differentiation,
+      monetization,
+      buildability,
+      total,
+      assessedDimensionsCount: assessedVals.length,
+      scorecardType: assessedVals.length >= 3 ? "PRELIMINARY" : "INSUFFICIENT_DATA",
+      basis,
+      sources,
+      verdictLabel,
     };
 
     return {
       ...idea,
-      competitors: dynamicCompetitors,
-      evidence: dynamicEvidence,
-      scorecard: {
-        demand: {
-          score: demandScore,
-          reason: demandReason,
-          assessed: demandAssessed,
-        },
-        competition: {
-          score: competitionScore,
-          reason: compReason,
-          assessed: compAssessed,
-        },
-        differentiation: {
-          score: diffScore,
-          reason: diffReason,
-          assessed: diffAssessed,
-        },
-        monetization: {
-          score: monetizationScore,
-          reason: monetizationReason,
-          assessed: monetizationAssessed,
-        },
-        buildability: {
-          score: buildabilityScore,
-          reason: buildabilityReason,
-          assessed: buildabilityAssessed,
-        },
-        overallScore,
-        scorecardType,
-        assessedDimensionsCount: 5,
-      },
+      competitors: fetchedCompetitors.map((c) => ({
+        name: c.name,
+        url: c.url,
+        pricing: c.pricingText || undefined,
+        gap: c.gap,
+      })),
       verdict: {
-        status: verdictStatus,
-        summary,
-        warnings,
-        pivot_suggestions: pivotSuggestions,
-        suggested_changes: suggestedChanges,
+        status: verifiedEvidenceCount > 0 ? "GO" : "INSUFFICIENT_DATA",
+        summary:
+          verifiedEvidenceCount > 0
+            ? `Advisory verdict (${verdictLabel}): grounded in ${verifiedEvidenceCount} verified live citation(s).`
+            : "Insufficient verified evidence.",
+        pivot_suggestions: [],
+        warnings: fetchedCompetitors.length === 0 ? ["Competitor pricing not assessed"] : [],
+        suggested_changes: ["Review evidence quotes", "Approve to launch build swarm"],
       },
-      financialModel,
-      status: "VALIDATED",
-      updatedAt: new Date().toISOString(),
+      honestScorecard,
+      fetchedCompetitors,
     };
   }
 }

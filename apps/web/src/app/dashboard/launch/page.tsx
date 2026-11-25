@@ -16,7 +16,7 @@ export default function LaunchPage() {
   const [previewMargin, setPreviewMargin] = useState(45);
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText("https://pricewatch-shopify.foundry.live");
+    navigator.clipboard.writeText("https://Workspace-shopify.foundry.live");
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
@@ -24,8 +24,8 @@ export default function LaunchPage() {
   const handleDownloadTar = () => {
     const manifest = {
       productionRelease: "BLD-8841",
-      companyName: "PriceWatch for Shopify",
-      url: "https://pricewatch-shopify.foundry.live",
+      companyName: "Venture Workspace",
+      url: "https://Workspace-shopify.foundry.live",
       deployedAt: new Date().toISOString(),
       sla: "13m 42s",
       files: 86,
@@ -36,7 +36,7 @@ export default function LaunchPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "pricewatch-shopify-production-dist.json";
+    a.download = "Workspace-shopify-production-dist.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -56,7 +56,7 @@ export default function LaunchPage() {
       <div className="pl-60 min-h-screen flex flex-col">
         {/* Header */}
         <DashboardHeader
-          currentBreadcrumb="Launch Delivery // PriceWatch"
+          currentBreadcrumb="Launch Delivery // Workspace"
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onNotificationsClick={() => setNotificationsOpen(true)}
         />
@@ -73,7 +73,7 @@ export default function LaunchPage() {
                 <span>/</span>
                 <span>Companies</span>
                 <span>/</span>
-                <span className="text-on-surface font-semibold">PriceWatch_for_Shopify</span>
+                <span className="text-on-surface font-semibold">Workspace_for_Shopify</span>
                 <span>/</span>
                 <span className="text-primary font-bold">#BLD-8841</span>
                 <span className="text-outline-variant">·</span>
@@ -115,7 +115,7 @@ export default function LaunchPage() {
                 Your company is ready.
               </h1>
               <p className="font-body-lg text-body-lg text-secondary max-w-2xl">
-                <span className="font-semibold text-on-surface">PriceWatch for Shopify</span> was compiled, verified, and deployed to global edge infrastructure in{" "}
+                <span className="font-semibold text-on-surface">Venture Workspace</span> was compiled, verified, and deployed to global edge infrastructure in{" "}
                 <span className="font-label-md text-label-md text-primary font-bold">13 minutes, 42 seconds</span>.
               </p>
             </div>
@@ -132,11 +132,11 @@ export default function LaunchPage() {
                   </span>
                   <a
                     className="font-label-lg text-label-lg md:text-[18px] text-tertiary underline decoration-2 underline-offset-4 font-bold truncate hover:text-primary transition-colors"
-                    href="https://pricewatch-shopify.foundry.live"
+                    href="https://Workspace-shopify.foundry.live"
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    https://pricewatch-shopify.foundry.live
+                    https://Workspace-shopify.foundry.live
                   </a>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function LaunchPage() {
                 </button>
 
                 <a
-                  href="https://pricewatch-shopify.foundry.live"
+                  href="https://Workspace-shopify.foundry.live"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="h-9 px-3 bg-primary text-on-primary border border-on-surface hover:bg-primary-container transition-all shadow-[2px_2px_0px_0px_#ca4b00] flex items-center gap-1.5 font-label-md text-label-md uppercase font-bold"
@@ -251,7 +251,7 @@ export default function LaunchPage() {
                 </div>
                 <div className="flex items-center gap-2 bg-surface-container-lowest px-3 py-1 border border-[#111111] font-label-sm text-label-sm text-secondary">
                   <span className="material-symbols-outlined text-[14px]">lock</span>
-                  <span className="font-mono">https://pricewatch-shopify.foundry.live</span>
+                  <span className="font-mono">https://Workspace-shopify.foundry.live</span>
                 </div>
                 <div className="flex items-center gap-1 text-secondary">
                   <span className="material-symbols-outlined text-[16px]">refresh</span>
@@ -268,7 +268,7 @@ export default function LaunchPage() {
                     </div>
                     <div>
                       <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold leading-tight">
-                        PriceWatch for Shopify
+                        Venture Workspace
                       </h3>
                       <span className="font-label-sm text-label-sm text-secondary">Store: apex-merch.myshopify.com</span>
                     </div>

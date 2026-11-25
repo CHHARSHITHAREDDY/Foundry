@@ -1,205 +1,196 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
 
-interface SidebarProps {
-  currentTab: "onboarding" | "overview" | "billing" | "settings";
-  onTabChange: (tab: "onboarding" | "overview" | "billing" | "settings") => void;
-  onNewCompany: () => void;
-  onBuyCredits: () => void;
-  onSelectCompany: (company: string) => void;
+export interface SidebarProps {
+  currentTab?: string;
+  onTabChange?: (tab: any) => void;
+  onNewCompany?: () => void;
+  onBuyCredits?: () => void;
+  onSelectCompany?: (companyId: string) => void;
 }
 
-export function Sidebar({
-  currentTab,
-  onTabChange,
-  onNewCompany,
-  onBuyCredits,
-  onSelectCompany,
-}: SidebarProps) {
-  const [companiesOpen, setCompaniesOpen] = useState(true);
+export function Sidebar({ onNewCompany }: SidebarProps) {
+  const pathname = usePathname();
+
+  const {
+    data: companiesData,
+    isLoading: companiesLoading,
+    isError: companiesError,
+    refetch: refetchCompanies,
+  } = useQuery({
+    queryKey: ["companies", "sidebar"],
+    queryFn: () => api.getCompanies({ limit: 10 }),
+  });
+
+  const { data: creditsData, isLoading: creditsLoading } = useQuery({
+    queryKey: ["billing", "credits"],
+    queryFn: () => api.getCredits(),
+  });
+
+  const companies = companiesData?.companies ?? [];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-surface-container-low border-r border-[#111111] z-50 flex flex-col justify-between select-none">
-      <div className="flex flex-col">
-        {/* Brand & Version Badge */}
-        <div className="h-14 px-space-md border-b border-[#111111] flex items-center justify-between bg-surface">
-          <Link href="/" className="flex items-center gap-space-xs">
-            <span className="font-headline-md text-headline-md tracking-tight text-on-surface font-serif">
-              Foundry
-            </span>
-            <span className="w-1.5 h-1.5 bg-primary mt-1" />
+    <aside className="fixed left-0 top-0 h-screen w-60 bg-surface-container-low border-r border-ink z-50 flex flex-col justify-between select-none">
+      <div className="flex flex-col min-h-0 flex-1">
+        {/* Brand */}
+        <div className="h-14 px-4 border-b border-ink flex items-center justify-between bg-surface shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-1.5">
+            <span className="font-serif text-xl font-bold tracking-tight text-ink">Foundry</span>
+            <span className="w-1.5 h-1.5 bg-accent mt-1" />
           </Link>
-          <span className="font-label-sm text-label-sm text-secondary uppercase px-1 py-0.5 border border-secondary-fixed-dim bg-surface-container font-mono">
-            v2.4
+          <span className="text-[10px] text-muted uppercase px-1.5 py-0.5 border border-border-subtle bg-stone font-mono">
+            LIVE
           </span>
         </div>
 
-        {/* Primary Action Button */}
-        <div className="p-space-md border-b border-surface-variant">
-          <button
-            onClick={onNewCompany}
-            className="w-full h-9 bg-[#111111] text-[#ffffff] font-label-md text-label-md uppercase tracking-wider flex items-center justify-center gap-space-xs rounded-DEFAULT border border-[#111111] hover:bg-primary-container hover:text-on-primary-container transition-all shadow-[2px_2px_0px_0px_#111111] cursor-pointer"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            <span>New Company</span>
-          </button>
+        {/* Primary Action */}
+        <div className="p-3 border-b border-border-subtle shrink-0">
+          {onNewCompany ? (
+            <button
+              onClick={onNewCompany}
+              type="button"
+              className="w-full h-9 bg-ink text-on-primary font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border border-ink hover:bg-accent hover:border-accent transition-all shadow-editorial-sm cursor-pointer font-bold"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              <span>New Company</span>
+            </button>
+          ) : (
+            <Link
+              href="/new"
+              className="w-full h-9 bg-ink text-on-primary font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border border-ink hover:bg-accent hover:border-accent transition-all shadow-editorial-sm font-bold"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              <span>New Company</span>
+            </Link>
+          )}
         </div>
 
-        {/* Navigation Items */}
-        <nav className="p-space-sm flex flex-col gap-1">
-          <button
-            onClick={() => onTabChange("onboarding")}
-            className={`w-full flex items-center gap-space-sm px-space-sm py-2 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors text-left ${
-              currentTab === "onboarding"
-                ? "bg-[#111111] text-[#ffffff] font-semibold"
-                : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+        {/* Navigation */}
+        <nav className="p-2 flex flex-col gap-1 overflow-y-auto flex-1">
+          <Link
+            href="/dashboard"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+              pathname === "/dashboard"
+                ? "bg-ink text-on-primary font-bold"
+                : "text-on-surface-variant hover:bg-stone hover:text-ink"
             }`}
           >
             <span className="material-symbols-outlined text-[18px]">dashboard</span>
             <span>Dashboard</span>
-          </button>
+          </Link>
 
-          <div className="flex flex-col">
-            <button
-              onClick={() => {
-                onTabChange("overview");
-                setCompaniesOpen(!companiesOpen);
-              }}
-              className={`w-full flex items-center justify-between px-space-sm py-2 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors text-left ${
-                currentTab === "overview"
-                  ? "bg-[#111111] text-[#ffffff] font-semibold"
-                  : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-              }`}
-            >
-              <div className="flex items-center gap-space-sm">
-                <span className="material-symbols-outlined text-[18px]">domain</span>
-                <span>Companies</span>
-              </div>
-              <span
-                className={`material-symbols-outlined text-[16px] transition-transform ${
-                  companiesOpen ? "rotate-0" : "-rotate-90"
-                }`}
-              >
-                expand_more
-              </span>
-            </button>
-
-            {companiesOpen && (
-              <div className="ml-space-md pl-space-sm my-1 border-l-2 border-[#111111] flex flex-col gap-0.5">
-                <button
-                  onClick={() => onSelectCompany("PriceWatch")}
-                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
-                >
-                  <span className="font-bold text-primary">PriceWatch</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
-                </button>
-                <button
-                  onClick={() => onSelectCompany("Dispatch")}
-                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
-                >
-                  <span>Dispatch</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
-                </button>
-                <button
-                  onClick={() => onSelectCompany("Codex AI")}
-                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
-                >
-                  <span>Codex</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                </button>
-                <button
-                  onClick={() => onSelectCompany("Pulse Wire")}
-                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
-                >
-                  <span>Pulse</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-error" />
-                </button>
-                <button
-                  onClick={() => onSelectCompany("Vesper")}
-                  className="flex items-center justify-between px-space-sm py-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors text-left"
-                >
-                  <span>Vesper</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => onTabChange("billing")}
-            className={`w-full flex items-center gap-space-sm px-space-sm py-2 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors text-left ${
-              currentTab === "billing"
-                ? "bg-[#111111] text-[#ffffff] font-semibold"
-                : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+          <Link
+            href="/billing"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+              pathname.startsWith("/billing")
+                ? "bg-ink text-on-primary font-bold"
+                : "text-on-surface-variant hover:bg-stone hover:text-ink"
             }`}
           >
             <span className="material-symbols-outlined text-[18px]">payments</span>
             <span>Billing</span>
-          </button>
+          </Link>
 
-          <button
-            onClick={() => onTabChange("settings")}
-            className={`w-full flex items-center gap-space-sm px-space-sm py-2 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors text-left ${
-              currentTab === "settings"
-                ? "bg-[#111111] text-[#ffffff] font-semibold"
-                : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+          <Link
+            href="/notifications"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+              pathname.startsWith("/notifications")
+                ? "bg-ink text-on-primary font-bold"
+                : "text-on-surface-variant hover:bg-stone hover:text-ink"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">settings</span>
-            <span>Settings</span>
-          </button>
+            <span className="material-symbols-outlined text-[18px]">notifications</span>
+            <span>Notifications</span>
+          </Link>
+
+          {/* Companies List */}
+          <div className="mt-4 pt-3 border-t border-border-subtle">
+            <div className="px-2.5 mb-2 flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted font-bold">
+                Your Companies
+              </span>
+              <span className="font-mono text-[10px] text-muted">{companiesData?.total ?? 0}</span>
+            </div>
+
+            {companiesLoading ? (
+              <div className="px-2.5 space-y-2">
+                <div className="h-6 bg-stone animate-pulse" />
+                <div className="h-6 bg-stone animate-pulse" />
+              </div>
+            ) : companiesError ? (
+              <div className="px-2.5 py-2 text-[11px] font-mono text-error space-y-1">
+                <p>Failed to load companies.</p>
+                <button
+                  type="button"
+                  onClick={() => refetchCompanies()}
+                  className="underline text-link cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : companies.length === 0 ? (
+              <p className="px-2.5 py-1 text-[11px] font-mono text-muted">No companies yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {companies.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/companies/${c.id}`}
+                    className="flex items-center justify-between px-2.5 py-1.5 text-xs font-mono hover:bg-stone text-ink transition-colors"
+                  >
+                    <span className="truncate pr-2">{c.name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {c.demo && (
+                        <span className="text-[9px] px-1 bg-warning-soft text-warning border border-warning uppercase">
+                          DEMO
+                        </span>
+                      )}
+                      <span
+                        className={`w-1.5 h-1.5 ${
+                          c.status === "LIVE"
+                            ? "bg-success"
+                            : c.status === "FAILED"
+                            ? "bg-error"
+                            : "bg-accent"
+                        }`}
+                      />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
 
-      {/* Bottom Section: Credit Meter & Profile */}
-      <div className="flex flex-col border-t border-[#111111] bg-surface">
-        <div className="p-space-sm border-b border-surface-variant">
-          <div className="p-space-sm bg-surface-container-lowest border border-[#111111] shadow-[2px_2px_0px_0px_#111111]">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-label-sm text-label-sm text-secondary uppercase font-mono">Allotted</span>
-              <span className="font-label-md text-label-md font-bold text-on-surface font-mono">184 CREDITS</span>
-            </div>
-            {/* 6-segment brutalist bar */}
-            <div className="grid grid-cols-6 gap-0.5 h-1.5 mb-2">
-              <div className="bg-primary h-full" />
-              <div className="bg-primary h-full" />
-              <div className="bg-primary h-full" />
-              <div className="bg-primary h-full" />
-              <div className="bg-surface-variant h-full" />
-              <div className="bg-surface-variant h-full" />
-            </div>
-            <div className="flex items-center justify-end">
-              <button
-                onClick={onBuyCredits}
-                className="font-label-sm text-label-sm uppercase font-bold text-primary hover:text-on-surface flex items-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <span>Buy Credits</span>
-                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-              </button>
-            </div>
+      {/* Credits Badge */}
+      <div className="p-3 border-t border-ink bg-surface shrink-0">
+        <Link
+          href="/billing/credits"
+          className="block p-2.5 bg-surface-container-lowest border border-ink shadow-editorial-sm hover:shadow-editorial transition-all"
+        >
+          <div className="flex items-center justify-between font-mono text-[10px] uppercase text-muted mb-1">
+            <span>Credits Balance</span>
+            <span className="text-accent font-bold">LIVE</span>
           </div>
-        </div>
-
-        {/* User Profile */}
-        <div className="p-space-sm flex items-center justify-between bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer">
-          <div className="flex items-center gap-space-xs">
-            <div className="w-7 h-7 bg-[#111111] border border-[#111111] flex items-center justify-center text-[#ffffff] font-label-sm text-label-sm font-bold font-mono">
-              EV
+          {creditsLoading ? (
+            <div className="h-6 w-20 bg-stone animate-pulse" />
+          ) : (
+            <div className="flex items-baseline justify-between">
+              <span className="font-serif text-xl font-bold text-ink" data-testid="sidebar-credits-balance">
+                {creditsData?.balance ?? 0}
+              </span>
+              <span className="font-mono text-[10px] text-link underline">Ledger →</span>
             </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-label-md text-label-md font-bold text-on-surface">Elena Vance</span>
-              <span className="font-label-sm text-label-sm text-secondary">Foundry Press</span>
-            </div>
-          </div>
-          <span className="material-symbols-outlined text-[18px] text-secondary">unfold_more</span>
-        </div>
+          )}
+        </Link>
       </div>
     </aside>
   );
 }
 
 export { Sidebar as DashboardSidebar };
-

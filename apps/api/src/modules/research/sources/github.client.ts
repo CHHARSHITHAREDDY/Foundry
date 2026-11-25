@@ -8,133 +8,150 @@ export interface GitHubIssueItem {
   reactions: number;
   comments: number;
   createdAt: string;
+  origin?: "LIVE" | "SAMPLE";
 }
 
-const GITHUB_SEARCH_QUERIES = [
-  'is:issue is:open label:"feature request" "wish there was"',
-  'is:issue is:open "pain point" OR "manual workaround"',
-  'is:issue is:open label:"enhancement" reactions:>15',
-  'is:issue is:open "migrating" OR "silent failure" OR "webhook"',
+export const GITHUB_PHRASE_POOL = [
+  "wish there was",
+  "pain point",
+  "manual workaround",
+  "silent failure",
+  "data drift",
+  "webhook retry",
+  "connection timeout",
+  "connection pool exhaustion",
+  "memory leak under load",
+  "broken migration rollback",
+  "race condition in queue",
+  "impossible to debug",
+  "feature request automate",
+  "losing customer data",
+  "rate limit exceeded",
+  "inconsistent state across services",
+  "cannot scale beyond",
+  "sync conflict in database",
+  "unhandled promise rejection in worker",
+  "schema mismatch in production",
+  "slow query pins cpu",
+  "flaky webhook delivery",
+  "missing audit logs",
+  "oauth token refresh bug",
+  "silent corruption in cache",
 ];
+
+export interface GitHubSearchOptions {
+  windowDays?: 7 | 30 | 90 | 180;
+  page?: number;
+  phrases?: string[];
+}
 
 export class GitHubSourceClient {
   private baseUrl = "https://api.github.com";
   private token?: string;
-  private queryCursor = 0;
 
   constructor() {
     this.token = process.env.GITHUB_TOKEN;
   }
 
-  async searchPainPoints(queryOverride?: string): Promise<GitHubIssueItem[]> {
-    const query =
-      queryOverride ||
-      GITHUB_SEARCH_QUERIES[this.queryCursor % GITHUB_SEARCH_QUERIES.length]!;
-    this.queryCursor++;
+  private shuffle<T>(array: T[]): T[] {
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+    }
+    return copy;
+  }
 
-    try {
-      const url = `${this.baseUrl}/search/issues?q=${encodeURIComponent(query)}&sort=reactions&order=desc&per_page=15`;
-      const headers: Record<string, string> = {
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "venture-studio-scout/2.0",
-      };
+  async searchPainPoints(options: GitHubSearchOptions = {}): Promise<GitHubIssueItem[]> {
+    const windowDays = options.windowDays || ([7, 30, 90][Math.floor(Math.random() * 3)] as 7 | 30 | 90);
+    const minDate = new Date(Date.now() - 86400000 * windowDays).toISOString().slice(0, 10);
+    const page = (options.page ?? Math.floor(Math.random() * 3)) + 1; // GitHub pages are 1-indexed
 
-      if (this.token) {
-        headers["Authorization"] = `Bearer ${this.token}`;
-      }
+    const phrasesToUse = options.phrases && options.phrases.length > 0
+      ? options.phrases
+      : this.shuffle(GITHUB_PHRASE_POOL).slice(0, Math.floor(Math.random() * 3) + 4); // 4-6 phrases
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
+    const results: GitHubIssueItem[] = [];
+    const seenIds = new Set<string>();
 
-      const response = await fetch(url, {
-        headers,
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "venture-studio-researcher/2.0",
+    };
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
 
-      if (!response.ok) {
-        throw new Error(`GitHub API returned ${response.status}: ${response.statusText}`);
-      }
+    for (const phrase of phrasesToUse) {
+      // Exactly one phrase per query, comments:>1, created:>(date), sort=created desc
+      const query = `is:issue is:open "${phrase}" comments:>1 created:>${minDate}`;
+      const url = `${this.baseUrl}/search/issues?q=${encodeURIComponent(query)}&sort=created&order=desc&per_page=10&page=${page}`;
 
-      const data: any = await response.json();
-      const items = (data.items || []).filter(
-        (item: any) => item.title && item.title.length > 15
-      );
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+        const response = await fetch(url, { headers, signal: controller.signal });
+        clearTimeout(timeout);
 
-      if (items.length > 0) {
-        return items.map((item: any) => {
+        if (!response.ok) {
+          if (response.status === 403) {
+            console.warn(`[GitHub Live] Rate limit or 403 on GitHub Search.`);
+          }
+          continue;
+        }
+
+        const data: any = await response.json();
+        const items = (data.items || []).filter(
+          (item: any) => item.title && !seenIds.has(String(item.id))
+        );
+
+        for (const item of items) {
+          seenIds.add(String(item.id));
           const repoUrlParts = item.repository_url ? item.repository_url.split("/") : [];
           const repoName = repoUrlParts.slice(-2).join("/") || "github-repo";
           const reactionCount = item.reactions
             ? item.reactions.total_count || item.reactions["+1"] || 0
             : 0;
 
-          return {
+          results.push({
             id: `gh_${item.id}`,
             title: item.title,
-            body: (item.body || "").slice(0, 400),
+            body: (item.body || "").slice(0, 450),
             url: item.html_url,
             repo: repoName,
-            author: item.user?.login || "gh_user",
+            author: item.user?.login || "gh_developer",
             reactions: reactionCount,
             comments: item.comments || 0,
             createdAt: item.created_at || new Date().toISOString(),
-          };
-        });
+            origin: "LIVE",
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[GitHub Live] Query for "${phrase}" failed: ${err.message}`);
       }
-    } catch {
-      // Fall through to curated developer pain points
     }
 
-    return this.getCuratedGitHubPool();
+    if (results.length === 0 && process.env.SAMPLE_DATA === "1") {
+      return this.getSampleSpecimens();
+    }
+
+    return results;
   }
 
-  private getCuratedGitHubPool(): GitHubIssueItem[] {
+  private getSampleSpecimens(): GitHubIssueItem[] {
     const timestamp = Date.now().toString(36);
     return [
       {
-        id: `gh_${timestamp}_1`,
-        title: "Feature Request: Automated schema drift detection & alert for Postgres",
-        body: "When deploying microservices across environments, schema drifts between staging and prod break queries silently. Wish there was a lightweight CLI/webhook tool that diffs DB schemas and alerts on Slack.",
-        url: "https://github.com/drizzle-team/drizzle-orm/issues/1048",
+        id: `gh_sample_${timestamp}_1`,
+        title: "[SAMPLE] Feature Request: Automated schema drift detection & alert for Postgres",
+        body: "When deploying microservices across environments, schema drifts between staging and prod break queries silently.",
+        url: "https://github.com/drizzle-team/drizzle-orm/issues/sample_1",
         repo: "drizzle-team/drizzle-orm",
-        author: "infra_lead_99",
-        reactions: 88,
-        comments: 29,
+        author: "sample_gh_user",
+        reactions: 12,
+        comments: 4,
         createdAt: new Date().toISOString(),
-      },
-      {
-        id: `gh_${timestamp}_2`,
-        title: "Wish there was a simple dead-letter queue replayer for Stripe webhooks",
-        body: "We constantly drop customer webhooks during deployments. We currently have to run a manual Node script to replay missed events. Need a 1-click webhook buffer and replay dashboard.",
-        url: "https://github.com/stripe/stripe-node/issues/2140",
-        repo: "stripe/stripe-node",
-        author: "payments_dev",
-        reactions: 104,
-        comments: 38,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: `gh_${timestamp}_3`,
-        title: "Need an automated broken link & 404 detector for Next.js documentation sites",
-        body: "Every time we update Markdown docs, internal route links break silently. Checking them manually takes hours. Would love a GitHub Action + dashboard that crawls internal routes on PRs.",
-        url: "https://github.com/vercel/next.js/issues/48910",
-        repo: "vercel/next.js",
-        author: "docs_maintainer",
-        reactions: 72,
-        comments: 21,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: `gh_${timestamp}_4`,
-        title: "Automated expiring OAuth refresh token watchdog with proactive notifications",
-        body: "Third-party merchant OAuth tokens for Shopify and QuickBooks expire silently when customers don't open the dashboard for 60 days, breaking background sync crons with zero warning.",
-        url: "https://github.com/Shopify/shopify-api-node/issues/3910",
-        repo: "shopify/shopify-api-node",
-        author: "saas_integrator",
-        reactions: 95,
-        comments: 34,
-        createdAt: new Date().toISOString(),
+        origin: "SAMPLE",
       },
     ];
   }

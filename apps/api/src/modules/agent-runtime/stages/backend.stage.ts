@@ -56,12 +56,14 @@ API Endpoints: ${JSON.stringify(spec.api.endpoints, null, 2)}
 Requirements:
 1. "src/db/schema/app.ts": Use Drizzle ORM with sqliteTable (or pgTable) to model the tables and columns.
 2. "src/app/api/items/route.ts": GET and POST Next.js 15 route handlers with Zod schema validation, proper status codes (200, 201, 400), and JSON responses.
+3. "src/app/api/stats/route.ts": GET Next.js 15 route handler returning domain KPI metrics and status counts.
 
 Return a JSON object in this format:
 {
   "files": {
     "src/db/schema/app.ts": "<typescript_code>",
-    "src/app/api/items/route.ts": "<typescript_code>"
+    "src/app/api/items/route.ts": "<typescript_code>",
+    "src/app/api/stats/route.ts": "<typescript_code>"
   }
 }`;
 
@@ -140,10 +142,26 @@ export async function POST(req: Request) {
 }
 `;
 
+    const statsCode = `import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({
+    kpis: [
+      { label: "Active Nodes", value: "48", change: "+12.4%" },
+      { label: "Throughput (ops/s)", value: "1,240", change: "+5.1%" },
+      { label: "Error Rate", value: "0.02%", change: "-0.01%" },
+      { label: "Health Score", value: "99.8%", change: "+0.2%" },
+    ],
+    updatedAt: new Date().toISOString(),
+  });
+}
+`;
+
     return {
       files: {
         "src/db/schema/app.ts": schemaCode,
         "src/app/api/items/route.ts": apiCode,
+        "src/app/api/stats/route.ts": statsCode,
       },
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     };

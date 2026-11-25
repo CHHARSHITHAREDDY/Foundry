@@ -32,9 +32,25 @@ export class PrismaDatabaseService {
   private prisma: PrismaClient | null = null;
   private pool: pg.Pool | null = null;
   private isConnected = false;
+  private initPromise: Promise<void>;
 
   private constructor() {
-    this.initClient();
+    this.initPromise = this.initClient();
+  }
+
+  public async ensureReady(): Promise<PrismaClient | null> {
+    await this.initPromise;
+    return this.prisma;
+  }
+
+  public async recordAuditLog(actor: string, action: string, target: string, metadata?: any): Promise<void> {
+    const prisma = await this.ensureReady();
+    if (!prisma) return;
+    try {
+      await prisma.auditLog.create({
+        data: { actor, action, target, metadata: metadata ?? undefined },
+      });
+    } catch {}
   }
 
   public static getInstance(): PrismaDatabaseService {
@@ -398,7 +414,7 @@ export class PrismaDatabaseService {
     if (!this.prisma) return 250;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx: any) => {
         // If idempotencyKey provided, check if transaction already processed
         if (params.idempotencyKey) {
           const existing = await tx.creditLedger.findFirst({

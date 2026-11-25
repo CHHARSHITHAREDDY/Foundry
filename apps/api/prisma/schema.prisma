@@ -42,19 +42,119 @@ enum DeploymentStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(FOUNDER)
-  credits   Int      @default(250)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  name                String
+  role                UserRole  @default(FOUNDER)
+  credits             Int       @default(0)
+  passwordHash        String?   @map("password_hash")
+  emailVerifiedAt     DateTime? @map("email_verified_at")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  twoFactorEnabled    Boolean   @default(false) @map("two_factor_enabled")
+  demo                Boolean   @default(false)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  ventures      Venture[]
-  notifications Notification[]
-  creditLedger  CreditLedger[]
+  ventures           Venture[]
+  notifications      Notification[]
+  creditLedger       CreditLedger[]
+  sessions           Session[]
+  emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
+  twoFactor          TwoFactor?
 
   @@map("users")
+}
+
+model Session {
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash          String    @unique @map("token_hash")
+  csrfToken          String    @map("csrf_token")
+  userAgent          String?   @map("user_agent")
+  ipAddress          String?   @map("ip_address")
+  trustedDeviceUntil DateTime? @map("trusted_device_until")
+  expiresAt          DateTime  @map("expires_at")
+  revokedAt          DateTime? @map("revoked_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model EmailVerification {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("email_verifications")
+}
+
+model PasswordReset {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("password_resets")
+}
+
+model TwoFactor {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret        String
+  recoveryCodes String[] @default([]) @map("recovery_codes")
+  enabled       Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("two_factor")
+}
+
+model DevOutbox {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  body      String   @db.Text
+  link      String?
+  type      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("dev_outbox")
+}
+
+model BillingPlan {
+  id                String   @id
+  name              String
+  priceMonthlyCents Int      @map("price_monthly_cents")
+  credits           Int
+  maxActiveVentures Int      @map("max_active_ventures")
+  features          String[] @default([])
+  active            Boolean  @default(true)
+  sortOrder         Int      @default(0) @map("sort_order")
+
+  @@map("billing_plans")
+}
+
+model PricingConfig {
+  action      String @id
+  label       String
+  credits     Int
+  description String
+
+  @@map("pricing_configs")
 }
 
 model Venture {
@@ -63,22 +163,33 @@ model Venture {
   tagline                 String?
   problem                 String           @db.Text
   targetCustomer          String           @map("target_customer")
+  jobToBeDone             String?          @db.Text @map("job_to_be_done")
   whyNow                  String?          @db.Text @map("why_now")
+  wedge                   String?          @db.Text
+  archetype               String?
+  mvpScope                Json?            @map("mvp_scope")
+  batchId                 String?          @map("batch_id")
+  ideaStatus              String           @default("CANDIDATE") @map("idea_status") // DRAFT | CANDIDATE | APPROVED | REJECTED
+  clarifyQuestions        Json?            @map("clarify_questions")
   verdict                 VerdictStatus    @default(INSUFFICIENT_DATA)
+  verdictLabel            String           @default("INSUFFICIENT_DATA") @map("verdict_label") // PRELIMINARY | INSUFFICIENT_DATA | NO_GO_SIGNALS
   totalScore              Float?           @map("total_score")
   scorecardType           String           @default("INSUFFICIENT_DATA") @map("scorecard_type")
   assessedDimensionsCount Int              @default(0) @map("assessed_dimensions_count")
   subdomain               String?          @unique
   status                  DeploymentStatus @default(BUILDING)
+  demo                    Boolean          @default(false)
   ownerId                 String           @map("owner_id")
   owner                   User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt               DateTime         @default(now()) @map("created_at")
   updatedAt               DateTime         @updatedAt @map("updated_at")
 
-  scorecard Scorecard?
-  evidence  EvidenceCitation[]
-  runs      WorkflowRun[]
+  scorecard   Scorecard?
+  evidence    EvidenceCitation[]
+  competitors CompetitorRecord[]
+  runs        WorkflowRun[]
 
+  @@index([ownerId, ideaStatus, createdAt])
   @@map("ventures")
 }
 
@@ -93,6 +204,8 @@ model Scorecard {
   buildability    Float?
   total           Float?
   scorecardType   String   @default("INSUFFICIENT_DATA") @map("scorecard_type")
+  basis           Json?
+  sources         String[] @default([])
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("scorecards")
@@ -102,15 +215,79 @@ model EvidenceCitation {
   id               String   @id @default(uuid())
   ventureId        String   @map("venture_id")
   venture          Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  painPointId      String?  @map("pain_point_id")
   source           String   // e.g. "Hacker News (Ask HN)", "GitHub (drizzle-team)"
   url              String
   quote            String   @db.Text
   sourceType       String   @default("LIVE_API") @map("source_type") // "LIVE_API" | "SAMPLE_SPECIMEN"
   citationVerified Boolean  @default(true) @map("citation_verified")
   sampleNotice     String?  @db.Text @map("sample_notice")
+  sourceCreatedAt  DateTime? @map("source_created_at")
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("evidence_citations")
+}
+
+model CompetitorRecord {
+  id          String   @id @default(uuid())
+  ventureId   String   @map("venture_id")
+  venture     Venture  @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  name        String
+  url         String?
+  pricingText String?  @db.Text @map("pricing_text")
+  gap         String?  @db.Text
+  fetchedAt   DateTime @default(now()) @map("fetched_at")
+
+  @@map("competitor_records")
+}
+
+model PainPointRecord {
+  id                    String   @id @default(uuid())
+  source                String
+  url                   String   @unique
+  quote                 String   @db.Text
+  problem               String   @db.Text
+  persona               String
+  currentWorkaround     String?  @db.Text @map("current_workaround")
+  severitySignals       String?  @db.Text @map("severity_signals")
+  willingnessToPayClues String?  @db.Text @map("willingness_to_pay_clues")
+  origin                String   @default("LIVE")
+  citationVerified      Boolean  @default(true) @map("citation_verified")
+  embedding             Float[]  @default([])
+  sourceCreatedAt       DateTime @map("source_created_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("pain_points")
+}
+
+model IdeaJob {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  mode           String   // "SURPRISE" | "CUSTOM"
+  status         String   @default("RUNNING") // "RUNNING" | "COMPLETED" | "INSUFFICIENT_LIVE_DATA" | "FAILED" | "CANCELLED"
+  promptText     String?  @db.Text @map("prompt_text")
+  sourcesSummary Json?    @map("sources_summary")
+  droppedLog     Json?    @map("dropped_log")
+  resultIdeaId   String?  @map("result_idea_id")
+  error          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@map("idea_jobs")
+}
+
+model UserSeenIdea {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  problem   String   @db.Text
+  embedding Float[]  @default([])
+  status    String   @default("SHOWN") // "SHOWN" | "APPROVED" | "REJECTED"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("user_seen_ideas")
 }
 
 model CreditLedger {
@@ -215,6 +392,7 @@ model Notification {
   title     String
   message   String   @db.Text
   read      Boolean  @default(false)
+  demo      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("notifications")

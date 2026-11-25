@@ -24,7 +24,7 @@ export function NewTaskDialog({
   isOpen,
   onClose,
   onSubmit,
-  companyName = "PriceWatch",
+  companyName = "Workspace",
 }: NewTaskDialogProps) {
   const [specification, setSpecification] = useState("");
   const [taskType, setTaskType] = useState<TaskType>("FEATURE");

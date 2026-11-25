@@ -31,6 +31,26 @@ export function extractJsonFromText(text: string): any {
     } catch {}
   }
 
+  // Handle slightly truncated arrays by closing after the last complete object
+  if (firstBracket !== -1) {
+    const lastObjectEnd = text.lastIndexOf("}");
+    if (lastObjectEnd > firstBracket) {
+      try {
+        return JSON.parse(text.substring(firstBracket, lastObjectEnd + 1) + "\n]");
+      } catch {}
+    }
+  }
+
+  // Handle slightly truncated objects by closing after the last complete property
+  if (firstBrace !== -1 && lastBrace === -1) {
+    const lastQuote = text.lastIndexOf('"');
+    if (lastQuote > firstBrace) {
+      try {
+        return JSON.parse(text.substring(firstBrace, lastQuote + 1) + "\n}");
+      } catch {}
+    }
+  }
+
   throw new Error(`Failed to extract valid JSON from model response: ${text.slice(0, 300)}...`);
 }
 

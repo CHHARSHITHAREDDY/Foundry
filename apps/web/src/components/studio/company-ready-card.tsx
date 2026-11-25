@@ -3,8 +3,8 @@
 import React from "react";
 
 export function CompanyReadyCard({
-  companyName = "PriceWatch",
-  url = "https://pricewatch-4k2.foundry.app",
+  companyName = "Workspace",
+  url = "https://Workspace-4k2.foundry.app",
   onLaunch,
 }: {
   companyName?: string;

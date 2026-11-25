@@ -101,11 +101,25 @@ export class SandboxService {
     };
   }
 
-  private copyTemplateFiles(src: string, dest: string, artifacts: string[]): void {
+  private copyTemplateFiles(src: string, dest: string, artifacts: string[], relativeRoot: string = ""): void {
     const entries = fs.readdirSync(src, { withFileTypes: true });
 
     for (const entry of entries) {
       if (entry.name === "node_modules" || entry.name === ".studio" || entry.name === ".git" || entry.name === ".next") {
+        continue;
+      }
+
+      const relPath = path.join(relativeRoot, entry.name).replace(/\\/g, "/");
+
+      // Option A: Omit preset application pages, demo marketing sections, and mock schema
+      // so the Autonomous Coding Agent authors 100% bespoke code for the venture.
+      if (
+        relPath === "src/app/page.tsx" ||
+        relPath.startsWith("src/app/(app)") ||
+        relPath.startsWith("src/components/landing") ||
+        relPath.startsWith("src/components/app") ||
+        relPath === "src/db/schema/app.ts"
+      ) {
         continue;
       }
 
@@ -116,7 +130,7 @@ export class SandboxService {
         if (!fs.existsSync(destPath)) {
           fs.mkdirSync(destPath, { recursive: true });
         }
-        this.copyTemplateFiles(srcPath, destPath, artifacts);
+        this.copyTemplateFiles(srcPath, destPath, artifacts, relPath);
       } else {
         fs.copyFileSync(srcPath, destPath);
         artifacts.push(path.relative(this.baseDir, destPath));

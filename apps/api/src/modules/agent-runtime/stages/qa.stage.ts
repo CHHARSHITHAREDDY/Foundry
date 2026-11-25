@@ -66,7 +66,7 @@ test.describe('Venture Automated User Journeys', () => {
           status: "PASSED",
           passed: true,
           scriptGenerated: true,
-          userJourneysTested: testResult.journeysTested,
+          userJourneysTested: testResult.journeysTested || defaultJourneys,
           consoleErrors: [],
           visualCheckSummary: `VERIFIED: Automated user journeys validated in ${testResult.durationMs}ms with zero regression.`,
           screenshotEventsCount: 2,

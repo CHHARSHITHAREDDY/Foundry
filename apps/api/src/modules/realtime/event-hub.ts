@@ -4,7 +4,22 @@ import { redisClient } from "../../redis/client.js";
 
 export interface StreamEvent {
   id?: string;
-  type: "connected" | "ping" | "agent:log" | "stage:change" | "qa:screenshot" | "build:complete" | "task:update";
+  stream?: string;
+  type:
+    | "connected"
+    | "ping"
+    | "agent:log"
+    | "stage:change"
+    | "qa:screenshot"
+    | "build:complete"
+    | "task:update"
+    | "idea:stage"
+    | "idea:sources"
+    | "idea:pain_point"
+    | "idea:dropped"
+    | "idea:completed"
+    | "idea:insufficient"
+    | "idea:error";
   payload: any;
   timestamp: string;
 }
@@ -20,14 +35,20 @@ export class RealtimeEventHub extends EventEmitter {
     return RealtimeEventHub.instance;
   }
 
-  async broadcast(type: StreamEvent["type"], payload: any, runId?: string): Promise<string> {
+  async broadcast(
+    type: StreamEvent["type"],
+    payload: any,
+    runId?: string,
+    stream: string = "sse:studio"
+  ): Promise<string> {
     const timestamp = new Date().toISOString();
-    
+
     // 1. Durable persistence in Neon PostgreSQL
-    const eventId = await prismaDatabase.persistStudioEvent("sse:studio", type, payload, runId);
+    const eventId = await prismaDatabase.persistStudioEvent(stream, type, payload, runId);
 
     const event: StreamEvent = {
       id: eventId,
+      stream,
       type,
       payload,
       timestamp,

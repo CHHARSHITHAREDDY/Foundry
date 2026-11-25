@@ -5,170 +5,159 @@ export interface HnItem {
   author: string;
   points: number;
   objectID: string;
-  type?: "story" | "comment";
+  type?: "story" | "comment" | "ask_hn";
+  created_at?: string;
+  origin?: "LIVE" | "SAMPLE";
 }
 
-const DIVERSE_HN_QUERIES = [
-  "wish existed OR manual process",
-  "internal tool OR built a tool",
-  "we still use excel OR spreadsheet",
-  "pay for a tool OR SaaS idea",
-  "pain point OR developer bottleneck",
-  "Shopify OR Stripe OR Postgres migration",
+export const HN_PHRASE_POOL = [
+  "wish existed",
+  "manual process",
+  "internal tool",
+  "we still use excel",
+  "pay for a tool",
+  "developer bottleneck",
+  "alternative to",
+  "broke our production",
+  "silent data corruption",
+  "too expensive for small teams",
+  "hate doing this manually",
+  "what tool do you wish existed",
+  "nightmare to maintain",
+  "spreadsheet workaround",
+  "hours wasted every week",
+  "why is there no good tool",
+  "automate this workflow",
+  "silent failure in production",
+  "billing reconciliation headache",
+  "webhook delivery failed",
+  "schema migration drift",
+  "compliance evidence collection",
+  "rate limit exceeded",
+  "unreliable background jobs",
+  "memory leak under load",
 ];
 
-const DIVERSE_COMMENT_PHRASES = [
-  ['"wish someone would build"', '"pay for a tool that"'],
-  ['"we still do this manually"', '"nightmare to maintain"'],
-  ['"alternative to"', '"too expensive for small teams"'],
-  ['"broke our production"', '"silent data corruption"'],
-];
+export interface HnSearchOptions {
+  windowDays?: 7 | 30 | 90 | 180;
+  tags?: ("story" | "comment" | "ask_hn")[];
+  page?: number;
+  phrases?: string[];
+}
 
 export class HnAlgoliaSourceClient {
   private baseUrl = "https://hn.algolia.com/api/v1";
-  private queryCursor = 0;
+  private static poolIndex = 0;
+  private static shuffledPool: string[] = [];
 
-  async searchAskHn(queryOverride?: string): Promise<HnItem[]> {
-    const query = queryOverride || DIVERSE_HN_QUERIES[this.queryCursor % DIVERSE_HN_QUERIES.length]!;
-    this.queryCursor++;
-
-    try {
-      const url = `${this.baseUrl}/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=15`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`Algolia search failed: ${response.statusText}`);
-      }
-
-      const data: any = await response.json();
-      const hits = (data?.hits || []).filter(
-        (hit: any) => hit.title && hit.title.length > 15
-      );
-
-      if (hits.length > 0) {
-        return hits.map((hit: any) => ({
-          title: hit.title.replace(/^Ask HN:\s*/i, "").trim(),
-          story_text: hit.story_text || hit._highlightResult?.story_text?.value || "",
-          url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
-          author: hit.author || "hn_founder",
-          points: hit.points || Math.floor(Math.random() * 50) + 10,
-          objectID: String(hit.objectID),
-          type: "story" as const,
-        }));
-      }
-    } catch {
-      // Fall through to resilient pool
+  private shuffle<T>(array: T[]): T[] {
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j]!, copy[i]!];
     }
-
-    return this.getCuratedHnPool();
+    return copy;
   }
 
-  async searchCommentPainPoints(phrasesOverride?: string[]): Promise<HnItem[]> {
-    const phrases = phrasesOverride || DIVERSE_COMMENT_PHRASES[this.queryCursor % DIVERSE_COMMENT_PHRASES.length]!;
-    this.queryCursor++;
+  async searchLiveHn(options: HnSearchOptions = {}): Promise<HnItem[]> {
+    const windowDays = options.windowDays || ([7, 30, 90][Math.floor(Math.random() * 3)] as 7 | 30 | 90);
+    const windowSeconds = windowDays * 86400;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const minTimestamp = nowSec - windowSeconds;
 
-    try {
-      const query = phrases.join(" OR ");
-      const url = `${this.baseUrl}/search?query=${encodeURIComponent(query)}&tags=comment&hitsPerPage=12`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`Algolia comment search failed: ${response.statusText}`);
+    let phrasesToUse: string[];
+    if (options.phrases && options.phrases.length > 0) {
+      phrasesToUse = options.phrases;
+    } else {
+      if (HnAlgoliaSourceClient.shuffledPool.length === 0 || HnAlgoliaSourceClient.poolIndex >= HnAlgoliaSourceClient.shuffledPool.length) {
+        HnAlgoliaSourceClient.shuffledPool = this.shuffle(HN_PHRASE_POOL);
+        HnAlgoliaSourceClient.poolIndex = 0;
       }
-
-      const data: any = await response.json();
-      const hits = (data?.hits || []).filter(
-        (hit: any) => hit.comment_text && hit.comment_text.length > 40
+      const count = Math.min(Math.floor(Math.random() * 3) + 4, HnAlgoliaSourceClient.shuffledPool.length - HnAlgoliaSourceClient.poolIndex);
+      phrasesToUse = HnAlgoliaSourceClient.shuffledPool.slice(
+        HnAlgoliaSourceClient.poolIndex,
+        HnAlgoliaSourceClient.poolIndex + count
       );
-
-      if (hits.length > 0) {
-        return hits.map((hit: any) => ({
-          title: (hit.comment_text.replace(/<[^>]*>?/gm, "").slice(0, 90) + "...").trim(),
-          story_text: hit.comment_text.replace(/<[^>]*>?/gm, "").slice(0, 400),
-          url: `https://news.ycombinator.com/item?id=${hit.objectID}`,
-          author: hit.author || "hn_operator",
-          points: hit.points || Math.floor(Math.random() * 25) + 5,
-          objectID: String(hit.objectID),
-          type: "comment" as const,
-        }));
-      }
-    } catch {
-      // Fall through to resilient pool
+      HnAlgoliaSourceClient.poolIndex += count;
     }
 
-    return this.getCuratedCommentPool();
+    const page = options.page ?? Math.floor(Math.random() * 3); // random page 0-2
+    const targetTags = options.tags || ["ask_hn", "story", "comment"];
+
+    const results: HnItem[] = [];
+    const seenIds = new Set<string>();
+
+    for (const phrase of phrasesToUse) {
+      for (const tag of targetTags) {
+        try {
+          let tagFilter = tag === "ask_hn" ? "ask_hn" : tag;
+          const url = `${this.baseUrl}/search_by_date?tags=${tagFilter}&query=${encodeURIComponent(phrase)}&numericFilters=created_at_i>${minTimestamp}&page=${page}&hitsPerPage=10`;
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 6000);
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeout);
+
+          if (!res.ok) continue;
+
+          const data: any = await res.json();
+          const hits = (data?.hits || []).filter(
+            (h: any) => (h.title || h.comment_text) && !seenIds.has(String(h.objectID))
+          );
+
+          for (const hit of hits) {
+            seenIds.add(String(hit.objectID));
+            const rawBody = hit.story_text || hit.comment_text || "";
+            const cleanText = rawBody.replace(/<[^>]*>/g, " ").trim();
+            const cleanTitle = (hit.title || cleanText.slice(0, 90) + "...").replace(/^Ask HN:\s*/i, "").trim();
+
+            results.push({
+              title: cleanTitle,
+              story_text: cleanText || cleanTitle,
+              url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
+              author: hit.author || "hn_user",
+              points: hit.points || Math.floor(Math.random() * 25) + 5,
+              objectID: String(hit.objectID),
+              type: tag,
+              created_at: hit.created_at || new Date(hit.created_at_i * 1000).toISOString(),
+              origin: "LIVE",
+            });
+          }
+        } catch {
+          // Log and continue to next phrase/tag
+        }
+      }
+    }
+
+    if (results.length === 0 && process.env.SAMPLE_DATA === "1") {
+      return this.getSampleSpecimens();
+    }
+
+    return results;
   }
 
-  private getCuratedHnPool(): HnItem[] {
+  // Legacy compatibility wrappers
+  async searchAskHn(windowDays: 7 | 30 | 90 | 180 = 30): Promise<HnItem[]> {
+    return this.searchLiveHn({ tags: ["ask_hn", "story"], windowDays });
+  }
+
+  async searchCommentPainPoints(windowDays: 7 | 30 | 90 | 180 = 30): Promise<HnItem[]> {
+    return this.searchLiveHn({ tags: ["comment"], windowDays });
+  }
+
+  private getSampleSpecimens(): HnItem[] {
     const timestamp = Date.now().toString(36);
     return [
       {
-        title: "Dead-Letter Queue replay dashboard for dropped Stripe & Shopify webhook events",
-        story_text: "Whenever payment webhooks 500 during deployment, merchants lose order syncs. Our devs spend hours manually replaying lost webhooks via curl.",
-        url: "https://news.ycombinator.com/item?id=38491029",
-        author: "fintech_infra",
-        points: 142,
-        objectID: `hn_${timestamp}_1`,
+        title: "[SAMPLE] Autonomous agent execution watchdog for recursive loops",
+        story_text: "Our multi-step agents looped on schema drift, burning $400 in API tokens before alerts tripped.",
+        url: "https://news.ycombinator.com/item?id=sample_hn_1",
+        author: "sample_operator",
+        points: 42,
+        objectID: `hn_sample_${timestamp}_1`,
         type: "story",
-      },
-      {
-        title: "Automated schema drift and breaking migration alerts for multi-tenant Postgres RDS",
-        story_text: "Our staging databases silently diverge from production. We need a lightweight CI/CD tool that diffs DB constraints and generates instant rollback assertions.",
-        url: "https://news.ycombinator.com/item?id=39120485",
-        author: "db_architect",
-        points: 98,
-        objectID: `hn_${timestamp}_2`,
-        type: "story",
-      },
-      {
-        title: "Automated SOC2 compliance evidence collection across AWS, GitHub, and Google Workspace",
-        story_text: "We spend 3 weeks every quarter taking manual screenshots of MFA, branch protections, and IAM policies. Need an automated background collector with immutable logs.",
-        url: "https://news.ycombinator.com/item?id=39201944",
-        author: "security_lead",
-        points: 175,
-        objectID: `hn_${timestamp}_3`,
-        type: "story",
-      },
-      {
-        title: "Automated API contract testing and OpenAPI drift alert for microservice teams",
-        story_text: "Frontend engineers keep getting surprised when backend teams change response schemas without bumping versions. Need an automatic drift watchdog in CI.",
-        url: "https://news.ycombinator.com/item?id=39311029",
-        author: "api_designer",
-        points: 112,
-        objectID: `hn_${timestamp}_4`,
-        type: "story",
-      },
-    ];
-  }
-
-  private getCuratedCommentPool(): HnItem[] {
-    const timestamp = Date.now().toString(36);
-    return [
-      {
-        title: "I would pay $79/mo without hesitation for a tool that automates EU MOSS VAT filing...",
-        story_text: "Stripe Tax calculates VAT at checkout but doesn't generate the quarterly XML audit filing for EU one-stop-shop tax compliance. It takes 2 full days of manual accounting every quarter.",
-        url: "https://news.ycombinator.com/item?id=38192041",
-        author: "bootstrapped_eu",
-        points: 64,
-        objectID: `hnc_${timestamp}_1`,
-        type: "comment",
-      },
-      {
-        title: "We still use an enormous Google Sheet to track customer onboarding SLAs and trial drop-offs...",
-        story_text: "HubSpot is too bloated and expensive for early-stage B2B. A lightweight pipeline monitor that pings Slack when a trial user hasn't invited a team member in 48 hours would 3x our conversion.",
-        url: "https://news.ycombinator.com/item?id=38290119",
-        author: "growth_eng",
-        points: 48,
-        objectID: `hnc_${timestamp}_2`,
-        type: "comment",
+        created_at: new Date().toISOString(),
+        origin: "SAMPLE",
       },
     ];
   }

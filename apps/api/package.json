@@ -10,6 +10,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@fastify/cookie": "^9.4.0",
     "@fastify/cors": "^9.0.1",
     "@fastify/helmet": "^11.1.1",
     "@fastify/sensible": "^5.5.0",
@@ -19,6 +20,7 @@
     "@venture-studio/contracts": "workspace:*",
     "@venture-studio/llm-client": "workspace:*",
     "@venture-studio/service-kit": "workspace:*",
+    "argon2": "^0.45.2",
     "fastify": "^4.28.1",
     "ioredis": "^6.0.0",
     "pg": "^8.23.1",

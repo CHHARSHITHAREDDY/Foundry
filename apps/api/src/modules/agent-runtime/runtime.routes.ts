@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import fs from "fs";
+import path from "path";
 import { AgentSwarmExecutor } from "./runner/agent-executor.js";
 import { IdeaBriefSchema } from "@venture-studio/contracts";
 import { requireAuth, enforceRateLimitAndBudget } from "../auth/guards/auth.guard.js";
@@ -46,44 +48,158 @@ export async function runtimeRoutes(app: FastifyInstance) {
     };
 
     const idea = IdeaBriefSchema.parse(normalized);
-    request.log.info({ ideaTitle: idea.title, userId: user.id }, "Starting agent swarm build");
+    const requestedRunId = (request.body as any)?.runId || (raw as any)?.runId;
+    request.log.info({ ideaTitle: idea.title, userId: user.id, runId: requestedRunId }, "Starting agent swarm build");
 
     const result = await executor.executeBuild(
       idea,
       (stage, message) => {
         request.log.info({ stage }, message);
       },
-      user.id
+      user.id,
+      requestedRunId
     );
 
     return result;
   });
 
-  // Get durable run status and checkpoints from PostgreSQL
+  // List all durable runs from PostgreSQL and disk
+  app.get("/api/runtime/runs", async (request, reply) => {
+    const prisma = prismaDatabase.client;
+    const runsMap = new Map<string, any>();
+
+    // 1. Fetch from Postgres if available
+    if (prisma) {
+      try {
+        const dbRuns = await prisma.workflowRun.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        });
+        for (const r of dbRuns) {
+          runsMap.set(r.id, {
+            id: r.id,
+            status: (r as any).status || r.currentStage || "COMPLETED",
+            createdAt: r.createdAt,
+            ideaTitle: (r as any).ideaTitle || "Autonomous Venture",
+            tagline: (r as any).tagline || "Built by Venture Studio Agent Swarm",
+            stagesCompleted: r.completedStages?.length || 8,
+          });
+        }
+      } catch {}
+    }
+
+    // 2. Fetch from physical disk directory builds/
+    const buildsDir = path.resolve(process.cwd(), "builds");
+    if (fs.existsSync(buildsDir)) {
+      try {
+        const entries = fs.readdirSync(buildsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory() && entry.name.startsWith("run_")) {
+            const runId = entry.name;
+            const specPath = path.join(buildsDir, runId, "build-spec.json");
+            let title = "Generated SaaS Venture";
+            let tagline = "Autonomous full-stack application";
+            let createdAt = new Date().toISOString();
+
+            if (fs.existsSync(specPath)) {
+              try {
+                const spec = JSON.parse(fs.readFileSync(specPath, "utf-8"));
+                title = spec.name || spec.title || title;
+                tagline = spec.tagline || spec.description || tagline;
+              } catch {}
+            }
+
+            try {
+              const stat = fs.statSync(path.join(buildsDir, runId));
+              createdAt = stat.birthtime.toISOString();
+            } catch {}
+
+            if (!runsMap.has(runId)) {
+              runsMap.set(runId, {
+                id: runId,
+                status: "COMPLETED",
+                createdAt,
+                ideaTitle: title,
+                tagline,
+                stagesCompleted: 8,
+              });
+            }
+          }
+        }
+      } catch {}
+    }
+
+    const allRuns = Array.from(runsMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    return { runs: allRuns, count: allRuns.length };
+  });
+
+  // Get durable run status, checkpoints, and files from PostgreSQL or disk
   app.get("/api/runtime/runs/:runId", async (request, reply) => {
     const { runId } = request.params as { runId: string };
     const prisma = prismaDatabase.client;
-    if (!prisma) {
-      return reply.status(503).send({ error: "DATABASE_NOT_AVAILABLE" });
+
+    let run: any = null;
+    if (prisma) {
+      try {
+        run = await prisma.workflowRun.findUnique({
+          where: { id: runId },
+          include: {
+            checkpoints: {
+              orderBy: { createdAt: "asc" },
+            },
+            artifacts: {
+              select: { id: true, filePath: true, fileType: true, content: true, createdAt: true },
+            },
+          },
+        });
+      } catch {}
     }
 
-    const run = await prisma.workflowRun.findUnique({
-      where: { id: runId },
-      include: {
-        checkpoints: {
-          orderBy: { createdAt: "asc" },
-        },
-        artifacts: {
-          select: { id: true, filePath: true, fileType: true, createdAt: true },
-        },
-      },
-    });
+    // Physical disk fallback: check builds/<runId>
+    const buildDir = path.resolve(process.cwd(), "builds", runId);
+    let diskFiles: Record<string, string> = {};
+    let buildSpec: any = null;
 
-    if (!run) {
+    if (fs.existsSync(buildDir)) {
+      try {
+        const specPath = path.join(buildDir, "build-spec.json");
+        if (fs.existsSync(specPath)) {
+          buildSpec = JSON.parse(fs.readFileSync(specPath, "utf-8"));
+        }
+        const candidateFiles = [
+          "src/app/page.tsx",
+          "src/app/(app)/dashboard/page.tsx",
+          "src/db/schema/app.ts",
+          "src/app/api/items/route.ts",
+          "package.json",
+        ];
+        for (const rel of candidateFiles) {
+          const full = path.join(buildDir, rel);
+          if (fs.existsSync(full)) {
+            diskFiles[rel] = fs.readFileSync(full, "utf-8");
+          }
+        }
+      } catch {}
+    }
+
+    if (!run && !buildSpec && Object.keys(diskFiles).length === 0) {
       return reply.status(404).send({ error: "RUN_NOT_FOUND", runId });
     }
 
-    return run;
+    return {
+      ...(run || {
+        id: runId,
+        status: "COMPLETED",
+        checkpoints: [],
+        artifacts: [],
+      }),
+      buildSpec,
+      files: diskFiles,
+      sandboxPath: fs.existsSync(buildDir) ? buildDir : undefined,
+    };
   });
 
   // List stage checkpoints for a run

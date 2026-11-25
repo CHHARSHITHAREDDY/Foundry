@@ -1,3 +1,4 @@
+@import "../../../../packages/ui/src/tokens/theme.css";
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
@@ -9,10 +10,10 @@
   html, body {
     margin: 0;
     padding: 0;
-    background-color: #fbf9f4;
-    color: #111111;
+    background-color: var(--color-surface);
+    color: var(--color-ink);
   }
-  
+
   body {
     overscroll-behavior: none;
   }
@@ -37,4 +38,3 @@
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
-

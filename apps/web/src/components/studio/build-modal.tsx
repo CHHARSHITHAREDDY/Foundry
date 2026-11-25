@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 
 interface BuildModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
   const [isCompleted, setIsCompleted] = useState(false);
   const [subdomain, setSubdomain] = useState("");
   const [sandboxPath, setSandboxPath] = useState("");
+  const [activeRunId, setActiveRunId] = useState("");
   const [filesWritten, setFilesWritten] = useState(0);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +45,9 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
     setIsCompleted(false);
     setFilesWritten(0);
     setSandboxPath("");
+    
+    const defaultRunId = idea.id ? `run_${idea.id.replace(/[^a-z0-9]/gi, "").slice(-8)}` : `run_${Math.random().toString(36).substring(2, 9)}`;
+    setActiveRunId(defaultRunId);
     
     const titleSlug = (idea.title || "venture")
       .toLowerCase()
@@ -87,6 +92,7 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
             const data = JSON.parse(e.data);
             setIsCompleted(true);
             setStageIndex(5);
+            if (data.runId) setActiveRunId(data.runId);
             if (data.liveUrl) setSubdomain(data.liveUrl);
             if (data.filesWritten) setFilesWritten(data.filesWritten);
             if (data.sandboxPath) setSandboxPath(data.sandboxPath);
@@ -99,21 +105,48 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
       }
 
       // Trigger the build
-      const payload = (idea as any)?.idea || idea;
-      fetch("/api/backend/runtime/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-        .then((res) => {
-          if (res.ok) {
-            backendSucceeded = true;
-            return res.json();
-          }
-        })
-        .then((data) => {
-          if (data?.deployment?.liveUrl) {
-            setSubdomain(data.deployment.liveUrl);
+      const targetRunId = `run_${Math.random().toString(36).substring(2, 9)}`;
+      setActiveRunId(targetRunId);
+
+      const rawIdea = (idea as any)?.idea || idea;
+      const payload = {
+        idea: rawIdea,
+        runId: targetRunId,
+      };
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("studio_token") || "vst_mock_jwt_session"
+          : "vst_mock_jwt_session";
+
+      const executeBuild = async () => {
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+
+        let res: Response | null = null;
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+          res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/runtime/build`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          res = await fetch("/api/backend/runtime/build", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+        }
+
+        if (res && res.ok) {
+          backendSucceeded = true;
+          const data = await res.json();
+          if (data?.runId) setActiveRunId(data.runId);
+          if (data?.deployment) {
+            const url = data.deployment.liveUrl || data.deployment.simulatedUrl;
+            if (url) setSubdomain(url);
             if (data.sandboxResult?.filesWritten) {
               setFilesWritten(data.sandboxResult.filesWritten);
             }
@@ -123,8 +156,10 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
             setIsCompleted(true);
             setStageIndex(5);
           }
-        })
-        .catch(() => {});
+        }
+      };
+
+      executeBuild().catch(() => {});
     } catch {}
 
     // 2. Deterministic fallback timers if backend is offline or delayed
@@ -305,30 +340,55 @@ export function BuildModal({ isOpen, idea, onClose }: BuildModalProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-[#15803D]">
               <div className="min-w-0">
                 <span className="font-mono text-[10px] text-[#5F5E5E] uppercase block">
-                  LIVE EDGE SUBDOMAIN
+                  VENTURE PREVIEW & DEPLOYMENT
                 </span>
                 <span className="font-mono text-[13px] font-bold text-[#111111] truncate block">
                   {subdomain}
                 </span>
                 {filesWritten > 0 && (
                   <span className="font-mono text-[10px] text-[#15803D] block mt-0.5">
-                    {filesWritten} physical files hydrated on disk
+                    {filesWritten} physical files hydrated & compiled on disk
                   </span>
                 )}
               </div>
-              <a
-                href={subdomain}
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 bg-[#15803D] text-white font-mono text-[11px] uppercase tracking-[0.08em] font-bold hover:bg-[#166534] transition-colors shrink-0 text-center shadow-[2px_2px_0px_#111111]"
-              >
-                Launch Venture ↗
-              </a>
+              <div className="flex items-center gap-2 shrink-0">
+                {activeRunId && (
+                  <Link
+                    href={`/preview/${activeRunId}`}
+                    target="_blank"
+                    className="px-4 py-2 bg-[#15803D] text-white font-mono text-[11px] uppercase tracking-[0.08em] font-bold hover:bg-[#166534] transition-colors text-center shadow-[2px_2px_0px_#111111]"
+                  >
+                    🚀 Launch Interactive Preview ↗
+                  </Link>
+                )}
+                <a
+                  href={subdomain}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-2 border border-[#111111] bg-white text-[#111111] font-mono text-[10px] uppercase tracking-[0.08em] hover:bg-[#EDEDEA] transition-colors text-center"
+                >
+                  Cloud Edge ↗
+                </a>
+              </div>
             </div>
 
             {sandboxPath && (
-              <div className="font-mono text-[10px] text-[#5F5E5E] bg-white p-2 border border-[#D6D6D1] truncate">
-                Physical repository: <span className="text-[#111111]">{sandboxPath}</span>
+              <div className="font-mono text-[11px] bg-zinc-900 text-zinc-100 p-3 border border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">
+                    Physical Venture Repository Created
+                  </span>
+                  <span className="text-[10px] text-zinc-400">Next.js 15 + Tailwind</span>
+                </div>
+                <div className="text-[11px] text-zinc-300 break-all font-mono bg-zinc-950 p-2 rounded border border-zinc-800">
+                  {sandboxPath}
+                </div>
+                <div className="text-[10px] text-zinc-400">
+                  To run this venture locally:{" "}
+                  <code className="text-amber-300 font-mono bg-zinc-800 px-1.5 py-0.5 rounded">
+                    cd {sandboxPath} && pnpm dev --port 3005
+                  </code>
+                </div>
               </div>
             )}
           </div>

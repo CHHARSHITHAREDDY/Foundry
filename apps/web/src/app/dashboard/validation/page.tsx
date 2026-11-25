@@ -16,7 +16,7 @@ const api = new StudioApiClient();
 type VerdictMode = "go" | "changes" | "deficit" | "nogo";
 
 const DEFAULT_SPEC: SpecData = {
-  name: "PriceWatch for Shopify",
+  name: "Venture Workspace",
   thesis: "Real-time Shopify supplier price hike alerts paired with automated margin guardrails.",
   targetAudience: "Shopify DTC Brands doing >100 orders/day ($1M-$10M GMV) experiencing gross margin volatility.",
   problemStatement: "Wholesale suppliers update pricing sheets across irregular Excel files and CSV links without notification, causing up to 14% gross margin loss.",
@@ -1133,7 +1133,7 @@ function ValidationGateContent() {
         isOpen={buildModalOpen}
         onClose={() => setBuildModalOpen(false)}
         idea={{
-          id: "pricewatch-shopify",
+          id: "Workspace-shopify",
           title: spec.name,
           tagline: spec.thesis,
           score: compositeScore / 10,

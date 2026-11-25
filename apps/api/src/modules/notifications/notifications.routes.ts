@@ -1,56 +1,86 @@
 import { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { notificationsService } from "./services/notifications.service.js";
-
-const SEED_NOTIFS = [
-  {
-    id: "notif-1",
-    type: "BUILD",
-    title: "Stage 05 QA Review Gate Passed",
-    message: "Daedalus-03 satisfied all 3 invariants with 2 auto-patches applied.",
-    timestamp: "12:44",
-    read: false,
-  },
-  {
-    id: "notif-2",
-    type: "SECURITY",
-    title: "HMAC Sha256 Timing Attack Guard Verified",
-    message: "Timing safe equality check applied to Shopify webhook receiver.",
-    timestamp: "11:15",
-    read: false,
-  },
-  {
-    id: "notif-3",
-    type: "ALERTS",
-    title: "Anycast DNS Propagation Synchronized",
-    message: "Cloudflare Edge network routed pricewatch-4k2.foundry.app to 285 PoPs.",
-    timestamp: "10:30",
-    read: true,
-  },
-];
-
-let notifList = [...SEED_NOTIFS];
+import { NotificationsQuerySchema, MarkNotificationsReadRequestSchema } from "@venture-studio/contracts";
+import { prismaDatabase } from "../../db/prisma.service.js";
+import { requireAuth, requireRateLimit } from "../auth/guards/auth.guard.js";
 
 export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  // List notifications
-  app.get("/", async (_req, reply) => {
-    return reply.send({ notifications: notifList, unreadCount: notifList.filter((n) => !n.read).length });
+  app.get("/", async (req, reply) => {
+    const user = await requireAuth(req, reply);
+    if (!user) return;
+
+    const query = NotificationsQuerySchema.parse(req.query || {});
+    const prisma = await prismaDatabase.ensureReady();
+    if (!prisma) {
+      return reply.status(503).send({ statusCode: 503, error: "DB_UNAVAILABLE", message: "Database unavailable." });
+    }
+
+    const where: any = { userId: user.id };
+    if (query.unreadOnly) where.read = false;
+
+    const [unreadCount, rows] = await Promise.all([
+      prisma.notification.count({ where: { userId: user.id, read: false } }),
+      prisma.notification.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+    ]);
+
+    const hasMore = rows.length > query.limit;
+    const sliced = hasMore ? rows.slice(0, query.limit) : rows;
+    const nextCursor = hasMore ? sliced[sliced.length - 1]!.id : null;
+
+    return reply.send({
+      notifications: sliced.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        read: n.read,
+        createdAt: n.createdAt.toISOString(),
+      })),
+      unreadCount,
+      nextCursor,
+    });
   });
 
-  app.get("/list", async (_req, reply) => {
-    return reply.send({ notifications: notifList, unreadCount: notifList.filter((n) => !n.read).length });
-  });
+  app.post("/read", async (req, reply) => {
+    const user = await requireAuth(req, reply);
+    if (!user) return;
+    if (!(await requireRateLimit(req, reply, "notifications:read", 60, 60_000))) return;
 
-  // Mark notification read
-  app.post("/:id/read", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const n = notifList.find((item) => item.id === id);
-    if (n) n.read = true;
-    return reply.send({ success: true, notification: n });
-  });
+    const body = MarkNotificationsReadRequestSchema.parse(req.body || {});
+    const prisma = await prismaDatabase.ensureReady();
+    if (!prisma) {
+      return reply.status(503).send({ statusCode: 503, error: "DB_UNAVAILABLE", message: "Database unavailable." });
+    }
 
-  // Clear all notifications
-  app.post("/clear", async (_req, reply) => {
-    notifList = [];
-    return reply.send({ success: true, message: "Notifications cleared" });
+    if (body.all) {
+      await prisma.notification.updateMany({
+        where: { userId: user.id, read: false },
+        data: { read: true },
+      });
+      await prismaDatabase.recordAuditLog(user.id, "NOTIFICATIONS_MARK_ALL_READ", user.id);
+      return reply.send({ success: true });
+    }
+
+    if (!body.id) {
+      return reply.status(400).send({ statusCode: 400, error: "VALIDATION_ERROR", message: "Notification id or all=true required." });
+    }
+
+    const existing = await prisma.notification.findFirst({
+      where: { id: body.id, userId: user.id },
+    });
+    if (!existing) {
+      return reply.status(404).send({ statusCode: 404, error: "NOT_FOUND", message: "Notification not found." });
+    }
+
+    await prisma.notification.update({
+      where: { id: body.id },
+      data: { read: true },
+    });
+    await prismaDatabase.recordAuditLog(user.id, "NOTIFICATION_MARK_READ", body.id);
+    return reply.send({ success: true });
   });
 };

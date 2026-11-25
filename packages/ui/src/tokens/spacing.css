@@ -1,0 +1,7 @@
+:root {
+  --border-width-editorial: 1.5px;
+  --shadow-offset-sm: 2px 2px 0px 0px var(--color-ink);
+  --shadow-offset-md: 3px 3px 0px 0px var(--color-ink);
+  --shadow-offset-lg: 6px 6px 0px 0px var(--color-ink);
+  --radius-editorial: 0.125rem;
+}

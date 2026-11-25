@@ -229,14 +229,14 @@ function TasksContent() {
         }}
         onNewCompany={() => router.push("/dashboard/new")}
         onBuyCredits={() => router.push("/dashboard?tab=billing")}
-        onSelectCompany={() => router.push("/dashboard/company?company=PriceWatch")}
+        onSelectCompany={() => router.push("/dashboard/company?company=Workspace")}
       />
 
       {/* 2. Main Shell */}
       <div className="pl-60 min-h-screen flex flex-col">
         {/* Top Header */}
         <DashboardHeader
-          currentBreadcrumb="PriceWatch / Sprint Tasks Queue"
+          currentBreadcrumb="Workspace / Sprint Tasks Queue"
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onNotificationsClick={() => setNotificationsOpen((prev) => !prev)}
         />
@@ -255,7 +255,7 @@ function TasksContent() {
             setPaletteOpen(false);
             if (path === "build") router.push("/dashboard/build");
             if (path === "review") router.push("/dashboard/review");
-            if (path === "company") router.push("/dashboard/company?company=PriceWatch");
+            if (path === "company") router.push("/dashboard/company?company=Workspace");
           }}
         />
 
@@ -273,7 +273,7 @@ function TasksContent() {
                 </span>
               </div>
               <p className="font-serif text-xs text-secondary">
-                Autonomous task orchestration for PriceWatch. Tasks are compiled into Playwright assertions &amp; AST patches.
+                Autonomous task orchestration for Workspace. Tasks are compiled into Playwright assertions &amp; AST patches.
               </p>
             </div>
 
@@ -501,7 +501,7 @@ function TasksContent() {
         isOpen={newTaskOpen}
         onClose={() => setNewTaskOpen(false)}
         onSubmit={handleCreateTask}
-        companyName="PriceWatch"
+        companyName="Workspace"
       />
     </div>
   );

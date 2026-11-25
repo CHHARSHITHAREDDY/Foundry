@@ -6,62 +6,153 @@ export interface RedditPost {
   subreddit: string;
   permalink: string;
   score: number;
+  createdAt: string;
+  origin?: "LIVE" | "SAMPLE";
 }
 
-const SUBREDDIT_POOLS = [
-  ["SaaS", "startups", "webdev"],
-  ["Entrepreneur", "SideProject", "nocode"],
-  ["smallbusiness", "devops", "Productivity"],
+export const REDDIT_PHRASE_POOL = [
+  "pain point",
+  "what tool do you wish existed",
+  "we still do this manually",
+  "hate doing this manually",
+  "too expensive alternative",
+  "spreadsheets nightmare",
+  "biggest headache in your business",
+  "hours wasted on admin",
+  "why does no software solve",
+  "looking for tool that can",
+  "unreliable webhook integration",
+  "dunning failed payments churn",
+  "invoicing multi currency mess",
+  "silent data corruption",
+  "customer onboarding drop off",
+  "feature request wish existed",
+  "switched away because too complex",
+  "frustrating manual export",
+  "reconciliation takes days",
+  "compliance paperwork bottleneck",
+  "internal dashboard too slow",
+  "automate repetitive client tasks",
+  "billing dispute chargeback tool",
+  "unhandled edge cases in api",
+  "inventory stockout alert tool",
 ];
 
-const SEARCH_QUERIES = [
-  'pain point OR "I wish there was"',
-  '"we still do this manually" OR "hate doing this"',
-  '"what tool do you wish existed"',
-  '"alternative to" OR "too expensive"',
-];
+const TARGET_SUBREDDITS = ["SaaS", "startups", "webdev", "devops", "Entrepreneur"];
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
-  "venture-studio-market-scout/2.0 (researcher@foundry.studio)",
-];
+export interface RedditSearchOptions {
+  windowDays?: 7 | 30 | 90 | 180;
+  phrases?: string[];
+  subreddits?: string[];
+}
 
 export class RedditSourceClient {
-  private queryCursor = 0;
+  private clientId?: string;
+  private clientSecret?: string;
+  private userAgent = "desktop:venture-studio-market-scout:v2.0 (by /u/venturestudio)";
+  private cachedToken: { token: string; expiresAt: number } | null = null;
 
-  async searchPainPoints(
-    subredditsOverride?: string[],
-    queryOverride?: string
-  ): Promise<RedditPost[]> {
-    const subreddits =
-      subredditsOverride ||
-      SUBREDDIT_POOLS[this.queryCursor % SUBREDDIT_POOLS.length]!;
-    const query =
-      queryOverride ||
-      SEARCH_QUERIES[this.queryCursor % SEARCH_QUERIES.length]!;
-    const userAgent =
-      USER_AGENTS[this.queryCursor % USER_AGENTS.length]!;
-    this.queryCursor++;
+  constructor() {
+    this.clientId = process.env.REDDIT_CLIENT_ID;
+    this.clientSecret = process.env.REDDIT_CLIENT_SECRET;
+  }
+
+  private shuffle<T>(array: T[]): T[] {
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+    }
+    return copy;
+  }
+
+  private async getAccessToken(): Promise<string | null> {
+    if (this.cachedToken && Date.now() < this.cachedToken.expiresAt - 60000) {
+      return this.cachedToken.token;
+    }
+
+    if (!this.clientId || !this.clientSecret) {
+      console.warn("[Reddit OAuth] REDDIT_CLIENT_ID or REDDIT_CLIENT_SECRET not configured in .env. Skipping Reddit live API.");
+      return null;
+    }
+
+    try {
+      const basicAuth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch("https://www.reddit.com/api/v1/access_token", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          "User-Agent": this.userAgent,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "grant_type=client_credentials",
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        console.warn(`[Reddit OAuth] Token request failed: ${res.status} ${res.statusText}`);
+        return null;
+      }
+
+      const data: any = await res.json();
+      if (data && data.access_token) {
+        this.cachedToken = {
+          token: data.access_token,
+          expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
+        };
+        return this.cachedToken.token;
+      }
+    } catch (err: any) {
+      console.warn(`[Reddit OAuth] Failed to fetch access token: ${err?.message || err}`);
+    }
+
+    return null;
+  }
+
+  async searchPainPoints(options: RedditSearchOptions = {}): Promise<RedditPost[]> {
+    const token = await this.getAccessToken();
+    if (!token) {
+      if (process.env.SAMPLE_DATA === "1") {
+        return this.getSampleSpecimens();
+      }
+      return [];
+    }
+
+    const phrasesToUse = options.phrases && options.phrases.length > 0
+      ? options.phrases
+      : this.shuffle(REDDIT_PHRASE_POOL).slice(0, Math.floor(Math.random() * 3) + 4); // 4-6 phrases
+
+    const subreddits = options.subreddits || TARGET_SUBREDDITS;
+    const windowDays = options.windowDays || 30;
+    const timeFilter = windowDays <= 7 ? "week" : windowDays <= 30 ? "month" : "year";
 
     const results: RedditPost[] = [];
+    const seenPermalinks = new Set<string>();
 
-    for (const sub of subreddits) {
+    for (const phrase of phrasesToUse) {
+      const sub = subreddits[Math.floor(Math.random() * subreddits.length)]!;
       try {
-        const url = `https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=8&restrict_sr=1`;
+        const url = `https://oauth.reddit.com/r/${sub}/search?q=${encodeURIComponent(phrase)}&sort=new&t=${timeFilter}&limit=15&restrict_sr=1`;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
+        const timeout = setTimeout(() => controller.abort(), 6000);
 
         const response = await fetch(url, {
           headers: {
-            "User-Agent": userAgent,
-            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+            "User-Agent": this.userAgent,
           },
           signal: controller.signal,
         });
         clearTimeout(timeout);
 
-        if (!response.ok) continue;
+        if (!response.ok) {
+          console.warn(`[Reddit OAuth] Search for r/${sub} returned ${response.status}`);
+          continue;
+        }
 
         const data: any = await response.json();
         const children = data?.data?.children || [];
@@ -72,8 +163,9 @@ export class RedditSourceClient {
             post &&
             post.title &&
             post.title.length > 20 &&
-            !post.title.toLowerCase().includes("how do i get started")
+            !seenPermalinks.has(post.permalink)
           ) {
+            seenPermalinks.add(post.permalink);
             results.push({
               title: post.title,
               selftext: post.selftext || "",
@@ -81,71 +173,38 @@ export class RedditSourceClient {
               author: post.author || "reddit_user",
               subreddit: post.subreddit,
               permalink: post.permalink,
-              score: post.score || Math.floor(Math.random() * 40) + 10,
+              score: post.score || 10,
+              createdAt: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : new Date().toISOString(),
+              origin: "LIVE",
             });
           }
         }
-      } catch {
-        // Continue to next subreddit
+      } catch (err: any) {
+        console.warn(`[Reddit OAuth] Query failed: ${err?.message || err}`);
       }
     }
 
-    if (results.length > 0) {
-      return results;
+    if (results.length === 0 && process.env.SAMPLE_DATA === "1") {
+      return this.getSampleSpecimens();
     }
 
-    return this.getCuratedRedditPool();
+    return results;
   }
 
-  private getCuratedRedditPool(): RedditPost[] {
+  private getSampleSpecimens(): RedditPost[] {
     const timestamp = Date.now().toString(36);
     return [
       {
-        title: "I spend 4 hours every month fixing reverse-charge VAT invoices from Stripe",
-        selftext: "Our B2B SaaS in Germany sells across the EU. Stripe billing doesn't auto-verify VIES VAT IDs at checkout or create compliant reverse charge PDFs without huge manual fixes.",
-        url: "https://reddit.com/r/SaaS/comments/stripe_vat_compliance_nightmare",
-        author: "saas_founder_de",
+        title: "[SAMPLE] Automating EU VAT reverse-charge and digital services MOSS quarterly filings",
+        selftext: "Stripe Tax tells me I owe VAT in 14 EU countries but doesn't handle the MOSS quarterly XML filing.",
+        url: "https://reddit.com/r/SaaS/comments/sample_reddit_1",
+        author: "sample_reddit_founder",
         subreddit: "SaaS",
-        permalink: `/r/SaaS/comments/stripe_vat_${timestamp}`,
-        score: 84,
-      },
-      {
-        title: "Why is there no simple website downtime monitor that checks sub-pages and broken forms?",
-        selftext: "Pingdom and UptimeRobot just check if HTTP 200 returns on the homepage. Twice this year our pricing page form failed silently for 48 hours and we lost dozens of leads.",
-        url: "https://reddit.com/r/webdev/comments/why_are_uptime_monitors_so_dumb",
-        author: "lead_dev_mark",
-        subreddit: "webdev",
-        permalink: `/r/webdev/comments/uptime_monitors_${timestamp}`,
-        score: 112,
-      },
-      {
-        title: "Need an easy way to turn changelog notes into Twitter threads & email digests",
-        selftext: "Whenever we deploy our product updates, writing the release notes, then formatting for X, then LinkedIn, then our newsletter takes forever. A GitHub webhook that auto-drafts them would save 5 hrs/week.",
-        url: "https://reddit.com/r/Entrepreneur/comments/changelog_distribution_pain",
-        author: "indie_maker_99",
-        subreddit: "Entrepreneur",
-        permalink: `/r/Entrepreneur/comments/changelog_${timestamp}`,
-        score: 65,
-      },
-      {
-        title: "Churn tracking is completely broken for self-serve annual B2B subscriptions",
-        selftext: "Stripe and ChartMogul show trailing revenue, but when a client removes 4 out of 5 seats before renewal, no alert triggers until they churn. Need an early-warning contraction radar.",
-        url: "https://reddit.com/r/startups/comments/b2b_churn_early_warning",
-        author: "growth_lead",
-        subreddit: "startups",
-        permalink: `/r/startups/comments/churn_radar_${timestamp}`,
-        score: 93,
-      },
-      {
-        title: "Managing multi-currency invoice reconciliation for Stripe and Wise is a spreadsheet nightmare",
-        selftext: "We collect in USD, EUR, and GBP, then payout contractors via Wise. Our accountant spends 3 days at month-end reconciling exchange rate variances.",
-        url: "https://reddit.com/r/smallbusiness/comments/fx_reconciliation_hell",
-        author: "agency_owner",
-        subreddit: "smallbusiness",
-        permalink: `/r/smallbusiness/comments/fx_reconcile_${timestamp}`,
-        score: 77,
+        permalink: "/r/SaaS/comments/sample_reddit_1",
+        score: 35,
+        createdAt: new Date().toISOString(),
+        origin: "SAMPLE",
       },
     ];
   }
 }
-

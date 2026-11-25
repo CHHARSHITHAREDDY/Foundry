@@ -8,8 +8,8 @@ interface WebsitePanelProps {
 }
 
 export function WebsitePanel({
-  companyName = "PriceWatch",
-  endpoint = "https://pricewatch-4k2.foundry.app",
+  companyName = "Workspace",
+  endpoint = "https://Workspace-4k2.foundry.app",
 }: WebsitePanelProps) {
   const [copied, setCopied] = useState(false);
 

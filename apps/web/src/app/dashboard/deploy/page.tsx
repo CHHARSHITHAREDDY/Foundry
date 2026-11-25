@@ -52,7 +52,7 @@ function DeployProgressContent() {
     try {
       await api.completeDeploy();
     } catch {}
-    router.push("/dashboard/company?company=PriceWatch");
+    router.push("/dashboard/company?company=Workspace");
   };
 
   const handleConfirmAbort = async () => {
@@ -68,7 +68,7 @@ function DeployProgressContent() {
     return `${String(mins).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
   };
 
-  const endpointUrl = "https://pricewatch-4k2.foundry.app";
+  const endpointUrl = "https://Workspace-4k2.foundry.app";
 
   const handleCopyEndpoint = () => {
     navigator.clipboard.writeText(endpointUrl);
@@ -99,7 +99,7 @@ function DeployProgressContent() {
       id: "step-3",
       number: "03",
       name: "ALLOCATE SUBDOMAIN",
-      description: "pricewatch-4k2.foundry.app CNAME verified & mapped",
+      description: "Workspace-4k2.foundry.app CNAME verified & mapped",
       status: "COMPLETE",
       duration: "4.1s",
     },
@@ -135,14 +135,14 @@ function DeployProgressContent() {
         }}
         onNewCompany={() => router.push("/dashboard/new")}
         onBuyCredits={() => router.push("/dashboard?tab=billing")}
-        onSelectCompany={() => router.push("/dashboard/company?company=PriceWatch")}
+        onSelectCompany={() => router.push("/dashboard/company?company=Workspace")}
       />
 
       {/* 2. Main Shell */}
       <div className="pl-60 min-h-screen flex flex-col">
         {/* Top Header */}
         <DashboardHeader
-          currentBreadcrumb="PriceWatch / Stage 07 Deploy In-Progress"
+          currentBreadcrumb="Workspace / Stage 07 Deploy In-Progress"
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onNotificationsClick={() => setNotificationsOpen((prev) => !prev)}
         />
@@ -161,7 +161,7 @@ function DeployProgressContent() {
             setPaletteOpen(false);
             if (path === "build") router.push("/dashboard/build");
             if (path === "review") router.push("/dashboard/review");
-            if (path === "company") router.push("/dashboard/company?company=PriceWatch");
+            if (path === "company") router.push("/dashboard/company?company=Workspace");
           }}
         />
 
@@ -175,7 +175,7 @@ function DeployProgressContent() {
                   STAGE 05/05 ACTIVE
                 </span>
                 <h1 className="font-serif text-2xl font-bold text-on-surface">
-                  Deploying PriceWatch for Shopify
+                  Deploying Venture Workspace
                 </h1>
               </div>
               <div className="flex items-center gap-4 font-mono text-xs text-secondary">
@@ -400,7 +400,7 @@ function DeployProgressContent() {
 [2026-11-18 12:48:04.420] [BUNDLE] Client bundle size: 142 KB (gzip: 38 KB)
 [2026-11-18 12:48:08.810] [EDGE] Push to us-east: 200 OK
 [2026-11-18 12:48:11.205] [EDGE] Push to eu-central: 200 OK
-[2026-11-18 12:48:13.900] [CNAME] pricewatch-4k2.foundry.app -> cloudflare-edge-ingress
+[2026-11-18 12:48:13.900] [CNAME] Workspace-4k2.foundry.app -> cloudflare-edge-ingress
 [2026-11-18 12:48:16.140] [DNS] Anycast replication: 238/285 PoPs confirmed
 [2026-11-18 12:48:18.500] [SSL] Edge cert valid until 2027-11-18 (TLS 1.3 only)
 [2026-11-18 12:48:21.010] [SMOKE] Synthetic GET /api/health -> 200 OK (Latency: 18ms)

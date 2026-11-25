@@ -1,0 +1,33 @@
+:root {
+  /* Editorial Mono Design System Tokens */
+  --color-ink: #111111;
+  --color-paper: #FAFAF8;
+  --color-surface: #FBF9F4;
+  --color-surface-card: #FFFFFF;
+  --color-stone: #EDEDEA;
+  --color-stone-dark: #E4E2DD;
+  --color-accent: #F25C05;
+  --color-accent-soft: #FFF3E0;
+  --color-link: #1D4ED8;
+  --color-link-soft: #DCE1FF;
+  --color-muted: #5F5E5E;
+  --color-border: #111111;
+  --color-border-subtle: #D6D6D1;
+  --color-success: #15803D;
+  --color-success-soft: #E8F5E9;
+  --color-warning: #B45309;
+  --color-warning-soft: #FEF3C7;
+  --color-error: #BA1A1A;
+  --color-error-soft: #FFDAD6;
+
+  /* Semantic Aliases */
+  --color-primary: #A23A00;
+  --color-primary-container: #CA4B00;
+  --color-on-primary: #FFFFFF;
+  --color-on-surface: #111111;
+  --color-on-surface-variant: #474646;
+  --color-surface-container: #F0EEE8;
+  --color-surface-container-low: #F5F3EE;
+  --color-surface-container-high: #EAE8E3;
+  --color-surface-container-lowest: #FFFFFF;
+}

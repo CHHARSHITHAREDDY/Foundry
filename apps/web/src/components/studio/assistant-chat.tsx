@@ -16,10 +16,10 @@ const INITIAL_COMPANION_MESSAGES: ChatMessageItem[] = [
     id: "msg-2",
     sender: "ember",
     timestamp: "12:31",
-    content: "Identified PriceWatch: Margin Guardrail for high-volume Shopify Plus stores. Synthesized Prisma schemas, GraphQL webhooks, and modern Polaris slider components in 6 minutes.",
+    content: "Identified Workspace: Margin Guardrail for high-volume Shopify Plus stores. Synthesized Prisma schemas, GraphQL webhooks, and modern Polaris slider components in 6 minutes.",
     linkAction: {
       label: "VIEW LIVE ENDPOINT",
-      href: "https://pricewatch-4k2.foundry.app",
+      href: "https://Workspace-4k2.foundry.app",
     },
   },
   {
@@ -36,7 +36,7 @@ interface AssistantChatProps {
 }
 
 export function AssistantChat({
-  companyName = "PriceWatch",
+  companyName = "Workspace",
   onNewTaskFromChat,
 }: AssistantChatProps) {
   const [messages, setMessages] = useState<ChatMessageItem[]>(INITIAL_COMPANION_MESSAGES);

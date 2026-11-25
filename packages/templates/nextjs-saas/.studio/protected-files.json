@@ -1,0 +1,5 @@
+[
+  "package.json",
+  "next.config.ts",
+  "src/lib/auth/server.ts"
+]

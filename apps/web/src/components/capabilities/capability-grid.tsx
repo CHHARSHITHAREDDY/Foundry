@@ -12,8 +12,8 @@ interface CapabilityGridProps {
 }
 
 export function CapabilityGrid({
-  companyName = "PriceWatch",
-  companyDomain = "pricewatch-4k2.foundry.app",
+  companyName = "Workspace",
+  companyDomain = "Workspace-4k2.foundry.app",
 }: CapabilityGridProps) {
   return (
     <div className="flex flex-col gap-4">

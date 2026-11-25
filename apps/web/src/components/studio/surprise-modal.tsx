@@ -63,6 +63,11 @@ export function SurpriseModal({ isOpen, onClose, onApproveBuild }: SurpriseModal
       }
 
       const data = await res.json();
+      if (data.status === "INSUFFICIENT_LIVE_DATA" || !data.selectedIdea) {
+        setErrorMessage(data.message || "No fresh signals found. Try again.");
+        setStage("idle");
+        return;
+      }
       setIdeaData(data);
       setTweakedTitle(data.selectedIdea?.title || "Scouted Opportunity");
       setTweakedProblem(data.selectedIdea?.problem || "");

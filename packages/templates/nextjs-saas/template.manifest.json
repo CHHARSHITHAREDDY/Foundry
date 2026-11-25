@@ -1,0 +1,12 @@
+{
+  "name": "@venture-studio/nextjs-saas-template",
+  "version": "1.0.0",
+  "description": "Production-ready autonomous Next.js 15 SaaS template",
+  "features": [
+    "Drizzle ORM with Postgres",
+    "Tailwind CSS with Shadcn UI Primitives",
+    "Stripe webhook handler",
+    "Session authentication",
+    "Dashboard and landing pages"
+  ]
+}

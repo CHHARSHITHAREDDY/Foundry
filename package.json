@@ -7,6 +7,8 @@
   },
   "scripts": {
     "truth": "tsx scripts/truth-tests.ts",
+    "seed:dev": "tsx scripts/seed-dev.ts",
+    "check:no-mock-data": "tsx scripts/check-no-mock-data.ts",
     "dev": "turbo run dev --parallel",
     "api:dev": "pnpm --filter @venture-studio/api dev",
     "api:build": "pnpm --filter @venture-studio/api build",

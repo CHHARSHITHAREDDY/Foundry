@@ -2,619 +2,131 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigate?: (path: string) => void;
   onNewCompany?: () => void;
   onBuyCredits?: () => void;
   onSelectCompany?: (company: string) => void;
-  onNavigate?: (path: string) => void;
 }
 
 interface CommandItem {
   id: string;
-  group: "actions" | "companies" | "pages";
+  group: "pages" | "companies";
   title: string;
   subtitle: string;
   tag?: string;
-  badgeColor?: string;
-  shortcut?: string;
-  icon?: string;
-  statusDot?: string;
-  action: () => void;
+  href: string;
 }
 
-export function CommandPalette({
-  isOpen,
-  onClose,
-  onNewCompany,
-  onBuyCredits,
-  onSelectCompany,
-  onNavigate,
-}: CommandPaletteProps) {
+const NAVIGATION_PAGES: CommandItem[] = [
+  { id: "page-dashboard", group: "pages", title: "Dashboard", subtitle: "Overview & active companies", tag: "PAGE", href: "/dashboard" },
+  { id: "page-billing", group: "pages", title: "Billing Overview", subtitle: "Credits balance & action pricing", tag: "PAGE", href: "/billing" },
+  { id: "page-credits", group: "pages", title: "Credit Ledger", subtitle: "Immutable transaction history", tag: "PAGE", href: "/billing/credits" },
+  { id: "page-plans", group: "pages", title: "Plans & Checkout", subtitle: "Top up compute credits", tag: "PAGE", href: "/billing/plans" },
+  { id: "page-notifications", group: "pages", title: "Notifications", subtitle: "System alerts and approvals", tag: "PAGE", href: "/notifications" },
+];
+
+export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const items: CommandItem[] = [
-    // GROUP 1: ACTIONS
-    {
-      id: "action-new-company",
-      group: "actions",
-      title: "New company",
-      subtitle: "Scaffold a new autonomous venture protocol with reserve allocations",
-      tag: "PROMPT",
-      icon: "add",
-      shortcut: "ENTER ↵",
-      action: () => {
-        if (onNewCompany) onNewCompany();
-        else router.push("/dashboard/new");
-        onClose();
-      },
-    },
-    {
-      id: "action-buy-credits",
-      group: "actions",
-      title: "Buy credits",
-      subtitle: "Add reserve compute credits to syndicate wallet (Stripe / USDC)",
-      icon: "bolt",
-      shortcut: "⌘B",
-      action: () => {
-        if (onBuyCredits) onBuyCredits();
-        else router.push("/pricing");
-        onClose();
-      },
-    },
-    {
-      id: "action-scout",
-      group: "actions",
-      title: "Launch Heuristic Scout",
-      subtitle: "Reconnaissance crawlers scan Reddit, HN & Product Hunt",
-      tag: "SCOUT",
-      icon: "radar",
-      shortcut: "⌘R",
-      action: () => {
-        router.push("/dashboard/scout");
-        onClose();
-      },
-    },
-    // GROUP 2: COMPANIES
-    {
-      id: "company-pricewatch",
-      group: "companies",
-      title: "PriceWatch",
-      subtitle: "Margin guardrail for Shopify Plus · Live on Edge · 285 PoPs",
-      tag: "LIVE",
-      badgeColor: "text-[#15803D]",
-      statusDot: "bg-[#15803D]",
-      shortcut: "⌘0",
-      action: () => {
-        if (onSelectCompany) onSelectCompany("PriceWatch");
-        else router.push("/dashboard/company?company=PriceWatch");
-        onClose();
-      },
-    },
-    {
-      id: "company-dispatch",
-      group: "companies",
-      title: "Dispatch",
-      subtitle: "Autonomous daily newsletter · MRR $1,420 · 2,840 readers",
-      tag: "HEALTHY",
-      badgeColor: "text-[#15803D]",
-      statusDot: "bg-[#15803D]",
-      shortcut: "⌘1",
-      action: () => {
-        if (onSelectCompany) onSelectCompany("Dispatch");
-        else router.push("/dashboard?company=Dispatch");
-        onClose();
-      },
-    },
-    {
-      id: "company-codex",
-      group: "companies",
-      title: "Codex AI",
-      subtitle: "Technical documentation generator · Sprint 03 in progress",
-      tag: "BUILDING",
-      badgeColor: "text-primary",
-      statusDot: "bg-primary",
-      shortcut: "⌘2",
-      action: () => {
-        if (onSelectCompany) onSelectCompany("Codex AI");
-        else router.push("/dashboard?company=Codex%20AI");
-        onClose();
-      },
-    },
-    {
-      id: "company-vesper",
-      group: "companies",
-      title: "Vesper",
-      subtitle: "Generative ambient soundscapes · Awaiting founder approval",
-      tag: "STAGING",
-      badgeColor: "text-[#D97706]",
-      statusDot: "bg-[#D97706]",
-      shortcut: "⌘3",
-      action: () => {
-        if (onSelectCompany) onSelectCompany("Vesper");
-        else router.push("/dashboard?company=Vesper");
-        onClose();
-      },
-    },
-    {
-      id: "company-pulse",
-      group: "companies",
-      title: "Pulse Wire",
-      subtitle: "Competitive intelligence radar · CI/CD exit code 137",
-      tag: "FATAL_ERR",
-      badgeColor: "text-error",
-      statusDot: "bg-error",
-      shortcut: "⌘4",
-      action: () => {
-        if (onSelectCompany) onSelectCompany("Pulse Wire");
-        else router.push("/dashboard?company=Pulse%20Wire");
-        onClose();
-      },
-    },
-    // GROUP 3: PAGES
-    {
-      id: "page-notifications",
-      group: "pages",
-      title: "Notifications & Audit Feed",
-      subtitle: "Event stream, domain approvals, pipeline results",
-      icon: "notifications",
-      shortcut: "G then N",
-      action: () => {
-        if (onNavigate) onNavigate("notifications");
-        else router.push("/dashboard/notifications");
-        onClose();
-      },
-    },
-    {
-      id: "page-scout",
-      group: "pages",
-      title: "Live Heuristic Recon (Scout)",
-      subtitle: "Reddit, HN, Product Hunt real-time signal stream",
-      icon: "radar",
-      shortcut: "G then R",
-      action: () => {
-        if (onNavigate) onNavigate("scout");
-        else router.push("/dashboard/scout");
-        onClose();
-      },
-    },
-    {
-      id: "page-validation",
-      group: "pages",
-      title: "Validation Gate // Candidate Dossier",
-      subtitle: "Heuristic evaluation, composite score, competitive moats & pivots",
-      icon: "gavel",
-      shortcut: "G then V",
-      action: () => {
-        if (onNavigate) onNavigate("validation");
-        else router.push("/dashboard/validation");
-        onClose();
-      },
-    },
-    {
-      id: "page-build",
-      group: "pages",
-      title: "Autonomous Build Pipeline // Live Console",
-      subtitle: "Tri-split execution runner: Daedalus synthesis, terminal stream & sandbox preview",
-      icon: "precision_manufacturing",
-      shortcut: "G then B",
-      action: () => {
-        if (onNavigate) onNavigate("build");
-        else router.push("/dashboard/build");
-        onClose();
-      },
-    },
-    {
-      id: "page-launch",
-      group: "pages",
-      title: "Production Launch // Deployment Delivery",
-      subtitle: "Verified edge canonical host, performance metrics, tests & artifacts",
-      icon: "bolt",
-      shortcut: "G then L",
-      action: () => {
-        if (onNavigate) onNavigate("launch");
-        else router.push("/dashboard/launch");
-        onClose();
-      },
-    },
-    {
-      id: "page-review",
-      group: "pages",
-      title: "Code Review Gate // QA Verification",
-      subtitle: "3-panel workbench: AST diff viewer, Daedalus annotations & invariants audit",
-      icon: "rule",
-      shortcut: "G then C",
-      action: () => {
-        if (onNavigate) onNavigate("review");
-        else router.push("/dashboard/review");
-        onClose();
-      },
-    },
-    {
-      id: "page-deploy",
-      group: "pages",
-      title: "Active Stage 07 Deploy // Edge Ingress",
-      subtitle: "Global Anycast propagation, DNS sync & edge container rollout",
-      icon: "cloud_upload",
-      shortcut: "G then D",
-      action: () => {
-        if (onNavigate) onNavigate("deploy");
-        else router.push("/dashboard/deploy");
-        onClose();
-      },
-    },
-    {
-      id: "page-tasks",
-      group: "pages",
-      title: "Sprint Tasks Backlog & Queue",
-      subtitle: "Task orchestration, Playwright assertions & natural language spec parser",
-      icon: "checklist",
-      shortcut: "G then T",
-      action: () => {
-        if (onNavigate) onNavigate("tasks");
-        else router.push("/dashboard/tasks");
-        onClose();
-      },
-    },
-    {
-      id: "page-new",
-      group: "pages",
-      title: "Genesis Protocol // New Venture",
-      subtitle: "Initialize new company via heuristic signal or founder thesis",
-      icon: "rocket_launch",
-      shortcut: "G then G",
-      action: () => {
-        if (onNavigate) onNavigate("new");
-        else router.push("/dashboard/new");
-        onClose();
-      },
-    },
-    {
-      id: "page-billing",
-      group: "pages",
-      title: "Billing & Reserves",
-      subtitle: "Credit breakdown, Stripe keys, automated payment ledgers",
-      icon: "receipt_long",
-      shortcut: "G then B",
-      action: () => {
-        if (onNavigate) onNavigate("billing");
-        else router.push("/dashboard?tab=billing");
-        onClose();
-      },
-    },
-    {
-      id: "page-settings",
-      group: "pages",
-      title: "Settings & Security",
-      subtitle: "Cryptographic enclaves, SSH keys, syndicate team permissions",
-      icon: "tune",
-      shortcut: "G then S",
-      action: () => {
-        if (onNavigate) onNavigate("settings");
-        else router.push("/dashboard?tab=settings");
-        onClose();
-      },
-    },
-  ];
-
-  const filteredItems = items.filter(
-    (item) =>
-      item.title.toLowerCase().includes(query.toLowerCase()) ||
-      item.subtitle.toLowerCase().includes(query.toLowerCase()) ||
-      item.tag?.toLowerCase().includes(query.toLowerCase())
-  );
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setSelectedIndex(0);
+      setTimeout(() => inputRef.current?.focus(), 30);
     } else {
       setQuery("");
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % (filteredItems.length || 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % (filteredItems.length || 1));
-      } else if (e.key === "Enter" && filteredItems[selectedIndex]) {
-        e.preventDefault();
-        filteredItems[selectedIndex].action();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, filteredItems, selectedIndex, onClose]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["companies", "command", query],
+    queryFn: () => api.getCompanies({ search: query.trim() || undefined, limit: 8 }),
+    enabled: isOpen,
+  });
 
   if (!isOpen) return null;
 
-  const actionItems = filteredItems.filter((i) => i.group === "actions");
-  const companyItems = filteredItems.filter((i) => i.group === "companies");
-  const pageItems = filteredItems.filter((i) => i.group === "pages");
+  const q = query.trim().toLowerCase();
+  const matchedPages = NAVIGATION_PAGES.filter(
+    (p) => !q || p.title.toLowerCase().includes(q) || p.subtitle.toLowerCase().includes(q)
+  );
+  const companyItems: CommandItem[] = (data?.companies ?? []).map((c) => ({
+    id: `company-${c.id}`,
+    group: "companies",
+    title: c.name,
+    subtitle: c.tagline || c.subdomain || "Venture workspace",
+    tag: c.status,
+    href: `/companies/${c.id}`,
+  }));
 
-  let globalIndex = -1;
+  const allItems = [...companyItems, ...matchedPages];
 
   return (
     <div
+      className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm flex items-start justify-center pt-20 p-4"
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-[#141414]/45 backdrop-blur-[2px] flex items-start justify-center pt-20 px-4 animate-in fade-in duration-100"
     >
-      {/* COMMAND MENU MODAL DIALOG (640px) */}
       <div
+        className="w-full max-w-xl bg-surface-container-lowest border-editorial border-ink shadow-editorial-lg font-mono"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command Palette"
-        className="w-full max-w-[640px] bg-surface border-[1.5px] border-[#111111] shadow-[6px_6px_0px_0px_#111111] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
       >
-        {/* Archival Modal Header Ribbon */}
-        <div className="h-8 px-space-md bg-surface-container-high border-b border-[#111111] flex items-center justify-between select-none">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 bg-primary" />
-            <span className="font-label-sm text-label-sm text-on-surface uppercase font-bold tracking-wider">
-              [COMMAND_PALETTE // DISPATCH_NAV]
-            </span>
-          </div>
-          <div className="flex items-center gap-space-xs font-label-sm text-label-sm text-secondary">
-            <span className="px-1 border border-secondary-fixed-dim bg-surface-container text-[9px] leading-tight">
-              ESC
-            </span>
-            <span className="uppercase">TO DISMISS</span>
-          </div>
+        <div className="flex items-center border-b border-ink px-3 h-12">
+          <span className="material-symbols-outlined text-[18px] text-muted mr-2">search</span>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search your companies or jump to a page..."
+            className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[11px] px-2 py-0.5 border border-border-subtle text-muted hover:text-ink cursor-pointer"
+          >
+            ESC
+          </button>
         </div>
 
-        {/* Search Input Container */}
-        <div className="relative flex items-center bg-surface-container-lowest px-space-md py-3.5 border-b border-[#111111]">
-          <span className="material-symbols-outlined text-[20px] text-on-surface mr-3 shrink-0">search</span>
-          <div className="flex-1 flex items-center">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type an action or press shortcut..."
-              className="w-full bg-transparent font-headline-sm text-headline-sm text-on-surface outline-none placeholder:font-body-md placeholder:text-body-md placeholder:text-secondary/40 placeholder:italic"
-            />
-            {!query && <span className="inline-block w-2.5 h-5 bg-primary ml-0.5 animate-pulse shrink-0" />}
-          </div>
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-            <span className="px-1.5 py-0.5 border border-[#111111] bg-surface-container font-label-sm text-label-sm uppercase font-bold text-on-surface shadow-[1px_1px_0px_0px_#111111]">
-              RETURN ↵
-            </span>
-          </div>
-        </div>
-
-        {/* Results Body */}
-        <div className="max-h-[460px] overflow-y-auto flex flex-col p-2 space-y-3 bg-surface">
-          {/* GROUP 1: ACTIONS */}
-          {actionItems.length > 0 && (
-            <div>
-              <div className="px-space-sm py-1 font-label-sm text-label-sm text-secondary uppercase tracking-wider flex items-center justify-between">
-                <span>ACTIONS // EXECUTION</span>
-                <span className="text-[9px] text-secondary/70">PRIMITIVE_OPS</span>
-              </div>
-              <div className="flex flex-col gap-1 mt-1">
-                {actionItems.map((item) => {
-                  globalIndex++;
-                  const isSelected = selectedIndex === globalIndex;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={item.action}
-                      onMouseEnter={() => setSelectedIndex(globalIndex)}
-                      className={`group relative flex items-center justify-between px-space-sm py-2.5 cursor-pointer transition-all ${
-                        isSelected
-                          ? "bg-surface-container-low border-l-[3px] border-l-primary border-t border-r border-b border-[#111111] shadow-[2px_2px_0px_0px_#111111]"
-                          : "bg-surface hover:bg-surface-container-low border border-transparent hover:border-[#111111]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-space-sm min-w-0 pr-2">
-                        <div
-                          className={`w-7 h-7 flex items-center justify-center shrink-0 border border-[#111111] ${
-                            isSelected ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight truncate">
-                              {item.title}
-                            </span>
-                            {item.tag && (
-                              <span className="px-1 py-0.2 border border-primary font-label-sm text-[9px] text-primary uppercase bg-surface">
-                                {item.tag}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-body-sm text-body-sm text-secondary truncate mt-0.5">
-                            {item.subtitle}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-1">
-                        {item.shortcut && (
-                          <span
-                            className={`px-1.5 py-0.5 font-label-sm text-label-sm uppercase font-bold tracking-wider ${
-                              isSelected
-                                ? "bg-[#111111] text-surface"
-                                : "border border-surface-variant bg-surface-container-lowest text-on-surface"
-                            }`}
-                          >
-                            {item.shortcut}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+        <div className="max-h-80 overflow-y-auto divide-y divide-border-subtle">
+          {isLoading && (
+            <div className="p-4 text-xs text-muted">Searching companies...</div>
           )}
 
-          {actionItems.length > 0 && (companyItems.length > 0 || pageItems.length > 0) && (
-            <div className="h-px bg-surface-variant mx-space-sm" />
+          {!isLoading && allItems.length === 0 && (
+            <div className="p-6 text-center text-xs text-muted">No matching companies or pages found.</div>
           )}
 
-          {/* GROUP 2: COMPANIES */}
-          {companyItems.length > 0 && (
-            <div>
-              <div className="px-space-sm py-1 font-label-sm text-label-sm text-secondary uppercase tracking-wider flex items-center justify-between">
-                <span>COMPANIES // ACTIVE_PROTOCOLS</span>
-                <span className="text-[9px] text-secondary/70">{companyItems.length} RUNNING</span>
+          {allItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                router.push(item.href);
+                onClose();
+              }}
+              className="w-full text-left px-4 py-3 hover:bg-stone flex items-center justify-between gap-3 cursor-pointer"
+            >
+              <div>
+                <p className="text-xs font-bold text-ink">{item.title}</p>
+                <p className="text-[11px] text-muted truncate max-w-md">{item.subtitle}</p>
               </div>
-              <div className="flex flex-col gap-1 mt-1">
-                {companyItems.map((item) => {
-                  globalIndex++;
-                  const isSelected = selectedIndex === globalIndex;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={item.action}
-                      onMouseEnter={() => setSelectedIndex(globalIndex)}
-                      className={`group flex items-center justify-between px-space-sm py-2 cursor-pointer transition-all ${
-                        isSelected
-                          ? "bg-surface-container-low border-l-[3px] border-l-primary border-t border-r border-b border-[#111111] shadow-[2px_2px_0px_0px_#111111]"
-                          : "bg-surface hover:bg-surface-container-low border border-transparent hover:border-[#111111]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-space-sm min-w-0 pr-2">
-                        <div className="w-7 h-7 bg-surface-container-lowest border border-[#111111] flex items-center justify-center shrink-0">
-                          <span className={`w-2.5 h-2.5 rounded-full ${item.statusDot}`} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">
-                              {item.title}
-                            </span>
-                            {item.tag && (
-                              <span className={`font-label-sm text-label-sm uppercase font-semibold ${item.badgeColor}`}>
-                                {item.tag}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-body-sm text-body-sm text-secondary truncate">
-                            {item.subtitle}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="shrink-0">
-                        {item.shortcut && (
-                          <span className="px-1.5 py-0.5 border border-surface-variant bg-surface-container-lowest font-label-sm text-label-sm text-on-surface uppercase">
-                            {item.shortcut}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {companyItems.length > 0 && pageItems.length > 0 && (
-            <div className="h-px bg-surface-variant mx-space-sm" />
-          )}
-
-          {/* GROUP 3: PAGES */}
-          {pageItems.length > 0 && (
-            <div>
-              <div className="px-space-sm py-1 font-label-sm text-label-sm text-secondary uppercase tracking-wider flex items-center justify-between">
-                <span>NAVIGATION // DIRECTORY</span>
-                <span className="text-[9px] text-secondary/70">WORKSPACE</span>
-              </div>
-              <div className="flex flex-col gap-1 mt-1">
-                {pageItems.map((item) => {
-                  globalIndex++;
-                  const isSelected = selectedIndex === globalIndex;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={item.action}
-                      onMouseEnter={() => setSelectedIndex(globalIndex)}
-                      className={`group flex items-center justify-between px-space-sm py-2 cursor-pointer transition-all ${
-                        isSelected
-                          ? "bg-surface-container-low border-l-[3px] border-l-primary border-t border-r border-b border-[#111111] shadow-[2px_2px_0px_0px_#111111]"
-                          : "bg-surface hover:bg-surface-container-low border border-transparent hover:border-[#111111]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-space-sm min-w-0 pr-2">
-                        <div className="w-7 h-7 bg-surface-container border border-[#111111] text-on-surface flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate">
-                            {item.title}
-                          </span>
-                          <span className="font-body-sm text-body-sm text-secondary truncate">
-                            {item.subtitle}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="shrink-0">
-                        {item.shortcut && (
-                          <span className="px-1.5 py-0.5 border border-surface-variant bg-surface-container-lowest font-label-sm text-label-sm text-secondary uppercase">
-                            {item.shortcut}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {filteredItems.length === 0 && (
-            <div className="py-8 text-center text-secondary font-label-md text-label-md uppercase">
-              No matching actions or entities for &ldquo;{query}&rdquo;
-            </div>
-          )}
-        </div>
-
-        {/* Technical Modal Footer */}
-        <div className="px-space-md py-2.5 bg-surface-container-low border-t border-[#111111] flex flex-wrap items-center justify-between font-label-sm text-label-sm text-secondary select-none">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-on-surface">{filteredItems.length} RESULTS INDEXED</span>
-            <span className="text-surface-variant">|</span>
-            <span>LATENCY 2ms</span>
-          </div>
-          <div className="flex items-center gap-space-sm uppercase">
-            <span className="flex items-center gap-1 text-on-surface font-semibold">
-              <span className="px-1 py-0.5 border border-secondary-fixed-dim bg-surface text-[9px]">↑↓</span>
-              <span>Navigate</span>
-            </span>
-            <span className="flex items-center gap-1 text-on-surface font-semibold">
-              <span className="px-1 py-0.5 border border-secondary-fixed-dim bg-surface text-[9px]">↵</span>
-              <span>Select</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="px-1 py-0.5 border border-secondary-fixed-dim bg-surface text-[9px]">ESC</span>
-              <span>Close</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="px-1 py-0.5 border border-secondary-fixed-dim bg-surface text-[9px]">TAB</span>
-              <span>Actions</span>
-            </span>
-          </div>
+              {item.tag && (
+                <span className="text-[10px] px-1.5 py-0.5 border border-ink bg-paper text-ink uppercase shrink-0">
+                  {item.tag}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
     </div>
   );
 }
-

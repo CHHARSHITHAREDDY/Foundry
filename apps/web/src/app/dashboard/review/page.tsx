@@ -189,7 +189,7 @@ function CodeReviewContent() {
       a.download = res.filename || "audit-report-e9a2b84.md";
       a.click();
     } catch {
-      const auditMd = `# AUDIT REPORT: PriceWatch for Shopify\nStage: 05 -> 06 Review Gate\nCommit: #e9a2b84\nStatus: APPROVED WITH 2 FIXES`;
+      const auditMd = `# AUDIT REPORT: Venture Workspace\nStage: 05 -> 06 Review Gate\nCommit: #e9a2b84\nStatus: APPROVED WITH 2 FIXES`;
       const blob = new Blob([auditMd], { type: "text/markdown" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -221,14 +221,14 @@ function CodeReviewContent() {
         }}
         onNewCompany={() => router.push("/dashboard/new")}
         onBuyCredits={() => router.push("/dashboard?tab=billing")}
-        onSelectCompany={() => router.push("/dashboard/company?company=PriceWatch")}
+        onSelectCompany={() => router.push("/dashboard/company?company=Workspace")}
       />
 
       {/* 2. Main Shell */}
       <div className="pl-60 min-h-screen flex flex-col">
         {/* Top Header */}
         <DashboardHeader
-          currentBreadcrumb="PriceWatch / Stage 05 Code Review Gate"
+          currentBreadcrumb="Workspace / Stage 05 Code Review Gate"
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onNotificationsClick={() => setNotificationsOpen((prev) => !prev)}
         />

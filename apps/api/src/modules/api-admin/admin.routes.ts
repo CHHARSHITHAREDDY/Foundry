@@ -13,7 +13,7 @@ export const adminRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.addHook("preHandler", async (req, reply) => {
     const user = await requireAuth(req, reply);
     if (!user) return;
-    if (user.role !== "admin") {
+    if (user.role !== "ADMIN") {
       return reply.status(403).send({
         statusCode: 403,
         error: "FORBIDDEN",

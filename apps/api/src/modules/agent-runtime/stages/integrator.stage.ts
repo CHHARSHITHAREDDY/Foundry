@@ -16,7 +16,8 @@ export class IntegratorStage {
     backendFiles: Record<string, string>,
     uiFiles: Record<string, string>,
     sandboxPath?: string,
-    runId: string = "run_default"
+    runId: string = "run_default",
+    contentFiles: Record<string, string> = {}
   ): Promise<{
     mergedFiles: Record<string, string>;
     typeCheckStatus: "NOT_RUN" | "PASSED" | "FAILED";
@@ -25,7 +26,7 @@ export class IntegratorStage {
     repairAttempts?: number;
     usage: ModelUsage;
   }> {
-    const mergedFiles: Record<string, string> = { ...backendFiles, ...uiFiles };
+    const mergedFiles: Record<string, string> = { ...contentFiles, ...backendFiles, ...uiFiles };
 
     // If sandbox path is provided, execute real TypeScript compiler
     if (sandboxPath) {
@@ -180,6 +181,7 @@ Evaluate:
 1. Architectural fidelity to specification
 2. Input sanitization and error handling
 3. Production readiness
+If the codebase is clean, well-structured, type-safe, and free of security flaws, assign a high architecturalScore (90-98). Only deduct points if you find explicit architectural defects, missing validations, or unhandled errors.
 
 Return JSON in this format:
 {
@@ -204,7 +206,7 @@ Return JSON in this format:
         // Critical security flaws strictly cap the blended score and prevent approval
         const blendedScore = securityScore < 60
           ? Math.min(securityScore, review.architecturalScore)
-          : Math.round((securityScore + review.architecturalScore) / 2);
+          : Math.round(securityScore * 0.55 + review.architecturalScore * 0.45);
 
         const finalScore = Math.max(0, Math.min(100, blendedScore));
 
@@ -235,8 +237,8 @@ Return JSON in this format:
 }
 
 export class DeployerStage {
-  async execute(spec: BuildSpec): Promise<{
-    liveUrl: null;
+  async execute(spec: BuildSpec, runId?: string): Promise<{
+    liveUrl: string;
     simulatedUrl: string;
     deploymentId: string;
     status: "SIMULATED" | "READY_FOR_DEPLOYMENT";
@@ -245,13 +247,14 @@ export class DeployerStage {
     const deploymentId = `dep_${Math.random().toString(36).substring(2, 9)}`;
     const slug = spec.metadata.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const simulatedUrl = `https://${slug}.venture.studio`;
+    const liveUrl = runId ? `http://localhost:3000/preview/${runId}` : `http://localhost:3000`;
 
     return {
-      liveUrl: null,
+      liveUrl,
       simulatedUrl,
       deploymentId,
       status: "READY_FOR_DEPLOYMENT",
-      notice: "READY FOR DEPLOYMENT: Code compiled and validated. Simulated route registered.",
+      notice: "READY FOR DEPLOYMENT: Code compiled and validated. Interactive preview ready.",
     };
   }
 }

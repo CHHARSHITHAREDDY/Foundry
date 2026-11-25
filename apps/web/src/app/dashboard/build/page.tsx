@@ -19,7 +19,7 @@ interface TerminalLine {
 
 const INITIAL_LOGS: TerminalLine[] = [
   { id: "1", time: "06:38:02", type: "info", text: "INITIALIZING DAEDALUS AUTONOMOUS RUNNER CONTAINER (x86_64)", filter: "all" },
-  { id: "2", time: "06:38:04", type: "info", text: "Mounting ephemeral volume /var/foundry/workspaces/syndicate-01/pricewatch...", filter: "all" },
+  { id: "2", time: "06:38:04", type: "info", text: "Mounting ephemeral volume /var/foundry/workspaces/syndicate-01/Workspace...", filter: "all" },
   { id: "3", time: "06:38:12", type: "cmd", text: "git checkout -b autonomous/bld-8841-margin-engine", filter: "all" },
   { id: "4", time: "06:38:15", type: "info", text: "Loaded AST indexer: 42 typescript files parsed in 188ms.", filter: "compiler" },
   { id: "5", time: "06:38:45", type: "stage", text: "--- STAGE 1: ARCHITECT COMPLETE [Prisma + Next.js App Router] ---", filter: "all" },
@@ -80,6 +80,71 @@ function BuildConsoleInner() {
     return () => clearInterval(interval);
   }, []);
 
+  // Live SSE Telemetry listener for real-time 8-agent swarm updates
+  useEffect(() => {
+    let es: EventSource | null = null;
+    try {
+      if (typeof window !== "undefined" && "EventSource" in window) {
+        es = new EventSource("/api/backend/stream");
+
+        es.addEventListener("agent:log", (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            const now = new Date().toTimeString().split(" ")[0] || "12:00:00";
+            setLogs((prev) => [
+              ...prev,
+              {
+                id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                time: now,
+                type: data.level === "warn" ? "warn" : data.stage === "BUILDING" ? "cmd" : "info",
+                text: `[${data.stage || "SWARM"}] ${data.message}`,
+                filter: data.stage === "QA" ? "tests" : "compiler",
+              },
+            ]);
+          } catch {}
+        });
+
+        es.addEventListener("stage:change", (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            const now = new Date().toTimeString().split(" ")[0] || "12:00:00";
+            setLogs((prev) => [
+              ...prev,
+              {
+                id: `stage_${Date.now()}`,
+                time: now,
+                type: "stage",
+                text: `=== STAGE: ${data.stage} === ${data.message || ""}`,
+                filter: "all",
+              },
+            ]);
+          } catch {}
+        });
+
+        es.addEventListener("build:complete", (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            const now = new Date().toTimeString().split(" ")[0] || "12:00:00";
+            setLogs((prev) => [
+              ...prev,
+              {
+                id: `complete_${Date.now()}`,
+                time: now,
+                type: "success",
+                text: `✓ [COMPLETE] Venture Swarm shipped: ${data.liveUrl || data.simulatedUrl} (${data.filesWritten || 24} files written)`,
+                filter: "all",
+              },
+            ]);
+          } catch {}
+        });
+      }
+    } catch {}
+
+    return () => {
+      es?.close();
+    };
+  }, []);
+
   const formatTime = (totalSecs: number) => {
     const mins = String(Math.floor(totalSecs / 60)).padStart(2, "0");
     const secs = String(totalSecs % 60).padStart(2, "0");
@@ -113,7 +178,7 @@ function BuildConsoleInner() {
     const payload = JSON.stringify(
       {
         bldId: "BLD-8841",
-        name: "PriceWatch for Shopify",
+        name: "Venture Workspace",
         version: "1.0.0-rc1",
         files: 24,
         tests: "18/18 passing",
@@ -126,7 +191,7 @@ function BuildConsoleInner() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "pricewatch-build-8841-manifest.json";
+    a.download = "Workspace-build-8841-manifest.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -146,7 +211,7 @@ function BuildConsoleInner() {
       <div className="pl-60 min-h-screen flex flex-col">
         {/* Global Dashboard Header */}
         <DashboardHeader
-          currentBreadcrumb="Build Pipeline // PriceWatch"
+          currentBreadcrumb="Build Pipeline // Workspace"
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onNotificationsClick={() => setNotificationsOpen(true)}
         />
@@ -165,7 +230,7 @@ function BuildConsoleInner() {
                   <span>/</span>
                   <span>COMPANIES</span>
                   <span>/</span>
-                  <span className="text-primary font-bold">PRICEWATCH_FOR_SHOPIFY</span>
+                  <span className="text-primary font-bold">Workspace_FOR_SHOPIFY</span>
                   <span>/</span>
                   <span className="bg-surface-container px-1 py-0.5 border border-on-surface text-on-surface font-semibold">
                     AUTONOMOUS_BUILD_PIPELINE #BLD-8841
@@ -229,7 +294,7 @@ function BuildConsoleInner() {
               <div className="flex flex-col md:flex-row md:items-end justify-between border-t border-surface-variant pt-space-xs gap-2">
                 <div className="flex items-baseline gap-space-sm">
                   <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-                    PriceWatch for Shopify
+                    Venture Workspace
                   </h1>
                   <span className="font-label-md text-label-md text-secondary uppercase tracking-widest hidden sm:inline">
                     [Venture Gen-04]
@@ -762,7 +827,7 @@ function BuildConsoleInner() {
                     <span className="material-symbols-outlined text-[12px] text-secondary">lock</span>
                   </div>
 
-                  {/* Rendered PriceWatch for Shopify Inside Sandbox */}
+                  {/* Rendered Venture Workspace Inside Sandbox */}
                   <div className="p-3 bg-surface flex-1 flex flex-col gap-2.5 overflow-y-auto">
                     {/* Mock In-App Header */}
                     <div className="flex items-center justify-between pb-2 border-b border-surface-variant">
@@ -771,7 +836,7 @@ function BuildConsoleInner() {
                           PW
                         </div>
                         <span className="font-headline-sm text-[13px] font-bold text-on-surface">
-                          PriceWatch Admin
+                          Workspace Admin
                         </span>
                       </div>
                       <span className="px-1.5 py-0.5 bg-[#dcfce7] text-[#15803D] font-label-sm text-[9px] font-bold border border-[#86efac]">

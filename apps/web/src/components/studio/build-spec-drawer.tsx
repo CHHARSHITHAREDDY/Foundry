@@ -273,7 +273,7 @@ export function BuildSpecDrawer({
   const handleCopySpecJson = () => {
     const sampleSpec = {
       specId: "#SPEC-PW-8841",
-      ventureName: "PriceWatch for Shopify",
+      ventureName: "Venture Workspace",
       stage: "01_ARCHITECT",
       status: "LOCKED_PASSED",
       stack: {
@@ -352,7 +352,7 @@ export function BuildSpecDrawer({
               </h1>
               <p className="font-body-sm text-body-sm text-on-surface-variant max-w-2xl mt-0.5">
                 Autonomous compilation blueprint for{" "}
-                <span className="text-on-surface font-semibold">PriceWatch for Shopify</span> (Shopify
+                <span className="text-on-surface font-semibold">Venture Workspace</span> (Shopify
                 Embedded App · Next.js 14 App Router · Prisma ORM · Tailwind).
               </p>
             </div>

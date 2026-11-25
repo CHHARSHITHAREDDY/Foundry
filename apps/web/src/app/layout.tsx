@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { QueryProvider } from "@/providers/query-provider";
 
 export const metadata: Metadata = {
   title: "Foundry // Autonomous Venture System",
@@ -25,10 +26,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-surface font-body-md text-on-surface antialiased">
-        {children}
+      <body className="bg-surface font-body-md text-ink antialiased">
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );
 }
-
